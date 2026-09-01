@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView, ScrollView, Text, View, StyleSheet, Pressable } from "react-native";
 import { useRouter } from "expo-router";
-import { colors, spacing, radius } from "../../constants/theme";
-import { IconButton } from "../../components/IconButton";
+import { colors, spacing, radius } from "../constants/theme";
+import { IconButton } from "../components/IconButton";
 
 export default function Notifications() {
   const router = useRouter();

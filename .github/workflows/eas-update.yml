@@ -1,0 +1,45 @@
+name: Fixora OTA Update
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Fixora
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install web bundling dependencies
+        run: npx expo install react-native-web react-dom @expo/metro-runtime
+        env:
+          npm_config_legacy_peer_deps: true
+
+      - name: Setup EAS
+        id: setup-eas
+        continue-on-error: true
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install EAS CLI fallback
+        if: steps.setup-eas.outcome == 'failure'
+        run: npm install --global eas-cli
+
+      - name: Publish OTA update
+        run: eas update --channel preview --non-interactive --message "Fixora update"
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          CI: true

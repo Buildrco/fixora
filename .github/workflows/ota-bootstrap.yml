@@ -1,0 +1,74 @@
+name: Fixora OTA Bootstrap
+
+on:
+  push:
+    branches: [ota-bootstrap]
+
+permissions:
+  contents: write
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npx expo install expo-updates
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - run: eas update:configure
+        env:
+          CI: true
+
+      - run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const p = JSON.parse(fs.readFileSync('eas.json'));
+          p.build.preview.channel = 'preview';
+          p.build.production.channel = 'production';
+          fs.writeFileSync('eas.json', JSON.stringify(p, null, 2) + '\n');
+          NODE
+
+          mkdir /tmp/fixora
+          cp package.json app.json eas.json /tmp/fixora/
+
+          git fetch origin main
+          git checkout -B main origin/main
+          cp /tmp/fixora/* .
+
+          mkdir -p .github/workflows
+          cat > .github/workflows/eas-update.yml <<'EOF'
+          name: Fixora OTA Update
+          on:
+            push:
+              branches: [main]
+          jobs:
+            update:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                - uses: actions/setup-node@v4
+                  with:
+                    node-version: 20
+                - run: npm install
+                - uses: expo/expo-github-action@v8
+                  with:
+                    eas-version: latest
+                    token: ${{ secrets.EXPO_TOKEN }}
+                - run: eas update --channel preview --non-interactive --message "Fixora update"
+          EOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json app.json eas.json .github/workflows/eas-update.yml
+          git commit -m "Configure Fixora OTA updates"
+          git push origin HEAD:main
+          git push origin --delete ota-bootstrap

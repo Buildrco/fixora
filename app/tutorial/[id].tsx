@@ -1,0 +1,12 @@
+import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView, ScrollView, Text, View, StyleSheet, Image, Pressable } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { colors, radius } from "../../constants/theme";
+import { IconButton } from "../../components/IconButton";
+
+const tutorials:any={"iphone-diagnosis":{title:"How to diagnose an iPhone with no power",meta:"12 min · Intermediate",image:"https://images.unsplash.com/photo-1597423244037-9d8c2d0f4b3d?auto=format&fit=crop&w=1000&q=85"}};
+export default function TutorialDetails(){const router=useRouter();const {id}=useLocalSearchParams();const t=tutorials[id as string]||tutorials["iphone-diagnosis"];return <SafeAreaView style={styles.safe}><ScrollView>
+<View style={styles.hero}><Image source={{uri:t.image}} style={styles.image}/><View style={styles.back}><IconButton name="chevron-back" onPress={()=>router.back()}/></View><View style={styles.play}><Ionicons name="play" size={25} color="#fff"/></View></View>
+<View style={styles.content}><Text style={styles.kicker}>TUTORIAL</Text><Text style={styles.title}>{t.title}</Text><Text style={styles.meta}>{t.meta}</Text><Text style={styles.heading}>What you'll learn</Text><Text style={styles.body}>A practical diagnosis workflow, what to inspect first, and how to narrow down common power faults safely.</Text><Pressable style={({pressed})=>[styles.cta,pressed&&styles.pressed]}><Ionicons name="play" size={16} color="#fff"/><Text style={styles.ctaText}>Watch tutorial</Text></Pressable></View>
+</ScrollView></SafeAreaView>}
+const styles=StyleSheet.create({safe:{flex:1,backgroundColor:colors.card},hero:{height:310},image:{width:"100%",height:"100%"},back:{position:"absolute",top:16,left:16},play:{position:"absolute",alignSelf:"center",top:130,width:58,height:58,borderRadius:29,backgroundColor:"rgba(0,0,0,.55)",alignItems:"center",justifyContent:"center"},content:{padding:18},kicker:{fontSize:10,fontWeight:"800",letterSpacing:1.2,color:colors.accent},title:{fontSize:27,lineHeight:32,fontWeight:"800",color:colors.ink,marginTop:7},meta:{fontSize:12,color:colors.muted,marginTop:8},heading:{fontSize:19,fontWeight:"800",color:colors.ink,marginTop:28},body:{fontSize:14,lineHeight:22,color:colors.muted,marginTop:8},cta:{height:54,borderRadius:radius.md,backgroundColor:colors.ink,flexDirection:"row",alignItems:"center",justifyContent:"center",gap:8,marginTop:25},pressed:{opacity:.78},ctaText:{color:"#fff",fontWeight:"800",fontSize:15}});

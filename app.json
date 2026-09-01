@@ -7,7 +7,8 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "./plugins/withAndroidArm64"
     ],
     "ios": {
       "supportsTablet": true,

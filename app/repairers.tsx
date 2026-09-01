@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView, ScrollView, Text, View, StyleSheet, Pressable } from "react-native";
 import { useRouter } from "expo-router";
-import { colors, radius } from "../../constants/theme";
-import { IconButton } from "../../components/IconButton";
+import { colors, radius } from "../constants/theme";
+import { IconButton } from "../components/IconButton";
 
 export default function MatchedRepairers(){const router=useRouter();return <SafeAreaView style={styles.safe}><ScrollView contentContainerStyle={styles.content}><View style={styles.header}><IconButton name="chevron-back" onPress={()=>router.back()}/><Text style={styles.title}>Matched repairers</Text><View style={styles.spacer}/></View><Text style={styles.sub}>Verified repairers available for your request.</Text>{[["K-Tech Repairs","4.9","2.1 km","GH₵280"],["iFix Lab","4.8","3.4 km","GH₵350"]].map(x=><Pressable key={x[0]} onPress={()=>router.push("/repair/confirmation" as any)} style={styles.card}><View style={styles.icon}><Ionicons name="construct-outline" size={22} color={colors.ink}/></View><View style={styles.copy}><Text style={styles.name}>{x[0]}</Text><Text style={styles.meta}>★ {x[1]} · {x[2]}</Text><Text style={styles.price}>From {x[3]}</Text></View><Ionicons name="chevron-forward" size={18} color={colors.muted}/></Pressable>)}</ScrollView></SafeAreaView>}
 const styles=StyleSheet.create({safe:{flex:1,backgroundColor:colors.card},content:{padding:18},header:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},title:{fontSize:19,fontWeight:"800",color:colors.ink},spacer:{width:42},sub:{fontSize:13,color:colors.muted,marginTop:15,marginBottom:15},card:{padding:15,borderWidth:1,borderColor:colors.line,borderRadius:radius.md,flexDirection:"row",alignItems:"center",gap:12,marginBottom:11},icon:{width:46,height:46,borderRadius:15,backgroundColor:colors.soft,alignItems:"center",justifyContent:"center"},copy:{flex:1},name:{fontSize:15,fontWeight:"800",color:colors.ink},meta:{fontSize:11,color:colors.muted,marginTop:4},price:{fontSize:12,fontWeight:"800",color:colors.ink,marginTop:5}});

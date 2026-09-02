@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { Animated, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -34,7 +34,6 @@ export default function Tracking() {
   const productPrice = String(price || "GH₵0");
   const dropOff = String(address || "New Market, Central");
   const orderNumber = "#FX-204873";
-  const mapLine = useMemo(() => deliveryMode === "pickup" ? "M 42 52 C 95 60, 130 110, 192 101" : "M 38 54 C 92 22, 104 128, 165 90 C 188 75, 217 104, 263 64", [deliveryMode]);
 
   useEffect(() => {
     Animated.parallel([

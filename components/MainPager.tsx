@@ -1,0 +1,123 @@
+import { useCallback, useRef, useState } from "react";
+import { Animated, Image, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { colors, radius } from "../constants/theme";
+import { IconButton } from "./IconButton";
+import { SectionTitle } from "./SectionTitle";
+import { Chip } from "./Chip";
+import { VendorCard } from "./VendorCard";
+import { PostCard } from "./PostCard";
+import { BottomNav, MainRoute, useBottomNavVisibility } from "./BottomNav";
+
+const repairImg = "https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&w=900&q=85";
+const shopImg = "https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?auto=format&fit=crop&w=900&q=85";
+const menuRoutes: MainRoute[] = ["home", "repair", "community", "profile"];
+const menuPaths = ["/", "/repair", "/community", "/profile"] as const;
+
+export function MainPager({ initial }: { initial: MainRoute }) {
+  const router = useRouter();
+  const { visibility, onScroll } = useBottomNavVisibility();
+  const initialIndex = menuRoutes.indexOf(initial);
+  const [pageWidth, setPageWidth] = useState(0);
+  const pageProgress = useRef(new Animated.Value(initialIndex)).current;
+  const pageIndex = useRef(initialIndex);
+
+  const settleTo = useCallback((target: number, navigate: boolean) => {
+    const current = pageIndex.current;
+    pageIndex.current = target;
+    Animated.spring(pageProgress, {
+      toValue: target,
+      tension: 86,
+      friction: 11,
+      overshootClamping: true,
+      useNativeDriver: false,
+    }).start(() => {
+      if (navigate && target !== current) router.replace(menuPaths[target] as never);
+    });
+  }, [pageProgress, router]);
+
+  const onSwipeMove = useCallback((gesture: { dx: number }) => {
+    if (!pageWidth) return;
+    const max = menuRoutes.length - 1;
+    const raw = pageIndex.current - gesture.dx / pageWidth;
+    const bounded = raw < 0 ? raw * 0.2 : raw > max ? max + (raw - max) * 0.2 : raw;
+    pageProgress.setValue(bounded);
+  }, [pageProgress, pageWidth]);
+
+  const onSwipeEnd = useCallback((gesture: { dx: number; vx: number }) => {
+    if (!pageWidth) return;
+    const current = pageIndex.current;
+    const distance = -gesture.dx / pageWidth;
+    const projected = current + distance - gesture.vx * 0.18;
+    let target = Math.round(projected);
+    if (Math.abs(gesture.dx) < 36 && Math.abs(gesture.vx) < 0.2) target = current;
+    target = Math.max(0, Math.min(menuRoutes.length - 1, target));
+    settleTo(target, true);
+  }, [pageWidth, settleTo]);
+
+  const swipeResponder = useRef(PanResponder.create({
+    onMoveShouldSetPanResponderCapture: (_, gesture) => Math.abs(gesture.dx) > Math.abs(gesture.dy) + 10 && Math.abs(gesture.dx) > 8,
+    onPanResponderMove: (_, gesture) => onSwipeMove(gesture),
+    onPanResponderRelease: (_, gesture) => onSwipeEnd(gesture),
+    onPanResponderTerminate: (_, gesture) => onSwipeEnd(gesture),
+  })).current;
+
+  return <SafeAreaProvider><SafeAreaView edges={["top"]} style={styles.safe}>
+    <View style={styles.root}>
+      <View style={styles.viewport} onLayout={event => setPageWidth(event.nativeEvent.layout.width)}>
+        <Animated.View style={[styles.track, { width: pageWidth ? pageWidth * menuRoutes.length : "400%", transform: [{ translateX: pageProgress.interpolate({ inputRange: [0, 1, 2, 3], outputRange: [0, -pageWidth, -pageWidth * 2, -pageWidth * 3] }) }] }]}>
+          <View style={[styles.page, { width: pageWidth || 1 }]}><HomePage onScroll={onScroll} /></View>
+          <View style={[styles.page, { width: pageWidth || 1 }]}><RepairPage onScroll={onScroll} /></View>
+          <View style={[styles.page, { width: pageWidth || 1 }]}><CommunityPage onScroll={onScroll} /></View>
+          <View style={[styles.page, { width: pageWidth || 1 }]}><ProfilePage onScroll={onScroll} /></View>
+        </Animated.View>
+      </View>
+      <BottomNav active={initial} visibility={visibility} pageProgress={pageProgress} onSelect={index => settleTo(index, true)} swipePanHandlers={swipeResponder.panHandlers} />
+    </View>
+  </SafeAreaView></SafeAreaProvider>;
+}
+
+type PageProps = { onScroll: (event: any) => void };
+
+function HomePage({ onScroll }: PageProps) {
+  const router = useRouter();
+  return <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={homeStyles.content} onScroll={onScroll} scrollEventThrottle={16}>
+    <View style={homeStyles.top}><View><Text style={homeStyles.eyebrow}>Good morning</Text><Text style={homeStyles.greeting}>What do you need today?</Text></View><IconButton name="notifications-outline" /></View>
+    <Pressable style={homeStyles.search} onPress={() => router.push("/shop")}><Ionicons name="search-outline" size={20} color={colors.muted} /><Text style={homeStyles.searchText}>Search phones, repairs, tutorials...</Text></Pressable>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={homeStyles.chips}><Chip label="Shop" active /><Chip label="Repair" /><Chip label="Learn" /><Chip label="Community" /><Chip label="Services" /></ScrollView>
+    <Pressable style={homeStyles.hero} onPress={() => router.push("/repair")}><Image source={{ uri: repairImg }} style={homeStyles.heroImage} /><View style={homeStyles.overlay} /><View style={homeStyles.heroCopy}><Text style={homeStyles.heroKicker}>REPAIR, WITHOUT THE RUNAROUND</Text><Text style={homeStyles.heroTitle}>Find a trusted repairer near you.</Text><View style={homeStyles.heroButton}><Text style={homeStyles.heroButtonText}>Start a repair</Text><Ionicons name="arrow-forward" size={17} color="#fff" /></View></View></Pressable>
+    <SectionTitle title="Quick actions" />
+    <View style={homeStyles.actionsGrid}>{[["phone-portrait-outline", "Shop phones", "/shop"], ["construct-outline", "Request repair", "/repair"], ["play-circle-outline", "Learn repairs", "/learn"], ["people-outline", "Join community", "/community"]].map(([icon, label, path]) => <Pressable key={label} onPress={() => router.push(path as never)} style={({ pressed }) => [homeStyles.quick, pressed && homeStyles.pressed]}><View style={homeStyles.quickIcon}><Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={22} color={colors.ink} /></View><Text style={homeStyles.quickText}>{label}</Text></Pressable>)}</View>
+    <SectionTitle title="Repairers near you" action="See all" />
+    <ScrollView horizontal showsHorizontalScrollIndicator={false}><VendorCard name="K-Tech Repairs" image={repairImg} price="GH₵280" distance="2.1 km" rating="4.9" /><VendorCard name="iFix Lab" image={shopImg} price="GH₵350" distance="3.4 km" rating="4.8" /></ScrollView>
+    <View style={homeStyles.popularSection}><SectionTitle title="Popular phones" action="Shop" /><View style={homeStyles.productRow}><Product image="https://images.unsplash.com/photo-1591337676887-a217a6970a8a?auto=format&fit=crop&w=700&q=85" name="iPhone 15 Pro" price="GH₵14,500" onPress={() => router.push("/product/iphone-15-pro" as never)} /><Product image="https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?auto=format&fit=crop&w=700&q=85" name="Galaxy S24" price="GH₵11,800" onPress={() => router.push("/product/galaxy-s24" as never)} /></View></View>
+  </ScrollView>;
+}
+
+function RepairPage({ onScroll }: PageProps) {
+  const router = useRouter();
+  const issues = ["Broken screen", "Battery", "Charging port", "Camera", "Speaker", "Water damage", "Software", "Motherboard"];
+  const icons = ["phone-portrait-outline", "battery-half-outline", "flash-outline", "camera-outline", "volume-medium-outline", "water-outline", "code-slash-outline", "hardware-chip-outline"];
+  return <ScrollView contentContainerStyle={repairStyles.content} onScroll={onScroll} scrollEventThrottle={16}><View style={repairStyles.head}><IconButton name="chevron-back" onPress={() => router.back()} /><Text style={repairStyles.title}>Request a repair</Text><View style={{ width: 42 }} /></View><Text style={repairStyles.step}>1 of 3</Text><Text style={repairStyles.h1}>What needs fixing?</Text><Text style={repairStyles.sub}>Choose the issue and we’ll match you with verified repairers.</Text><View style={repairStyles.device}><Ionicons name="phone-portrait-outline" size={25} color={colors.ink} /><View style={{ flex: 1 }}><Text style={repairStyles.deviceTitle}>iPhone 13 Pro</Text><Text style={repairStyles.deviceSub}>Your selected device</Text></View><Ionicons name="chevron-forward" size={19} color={colors.muted} /></View><View style={repairStyles.grid}>{issues.map((item, index) => <Pressable key={item} style={({ pressed }) => [repairStyles.issue, pressed && { transform: [{ scale: 0.97 }] }]}><View style={repairStyles.issueIcon}><Ionicons name={icons[index] as keyof typeof Ionicons.glyphMap} size={20} /></View><Text style={repairStyles.issueText}>{item}</Text></Pressable>)}</View><Pressable style={repairStyles.cta}><Text style={repairStyles.ctaText}>Continue</Text><Ionicons name="arrow-forward" size={18} color="#fff" /></Pressable></ScrollView>;
+}
+
+function CommunityPage({ onScroll }: PageProps) {
+  return <ScrollView contentContainerStyle={communityStyles.content} onScroll={onScroll} scrollEventThrottle={16}><View style={communityStyles.head}><Text style={communityStyles.title}>Community</Text><View style={communityStyles.icons}><IconButton name="search-outline" /><IconButton name="create-outline" /></View></View><View style={communityStyles.tabs}><Text style={[communityStyles.tab, communityStyles.active]}>For You</Text><Text style={communityStyles.tab}>Following</Text></View><Pressable style={communityStyles.compose}><View style={communityStyles.avatar}><Ionicons name="person" size={17} color={colors.muted} /></View><Text style={communityStyles.placeholder}>What's happening in tech?</Text><Ionicons name="image-outline" size={20} color={colors.muted} /></Pressable><PostCard name="Kwame Repairs" handle="@kwamerepairs" text="Board repair today. Found a short on the power rail — sharing the diagnosis process for anyone learning microsoldering." image="https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&w=1000&q=85" /><PostCard name="K-Tech Mobile" handle="@ktechmobile" text="Three clean iPhone 15 Pro units just arrived. Verified stock, 12-month warranty." image="https://images.unsplash.com/photo-1592286927505-2fd0b2b8b0a4?auto=format&fit=crop&w=1000&q=85" /></ScrollView>;
+}
+
+function ProfilePage({ onScroll }: PageProps) {
+  const items = ["Orders", "My learning", "Saved posts", "Payment methods", "Help & support"];
+  const icons = ["bag-outline", "play-circle-outline", "bookmark-outline", "card-outline", "help-circle-outline"];
+  return <ScrollView contentContainerStyle={profileStyles.content} onScroll={onScroll} scrollEventThrottle={16}><View style={profileStyles.head}><Text style={profileStyles.title}>Profile</Text><IconButton name="settings-outline" /></View><View style={profileStyles.profile}><Image source={{ uri: "https://i.pravatar.cc/160?img=12" }} style={profileStyles.avatar} /><View style={profileStyles.nameRow}><Text style={profileStyles.name}>Your Name</Text><View style={profileStyles.badge}><Text style={profileStyles.badgeText}>✓</Text></View></View><Text style={profileStyles.handle}>@yourhandle</Text><Text style={profileStyles.bio}>Phone enthusiast · Customer · Future repairer</Text><View style={profileStyles.stats}><Stat n="12" l="Posts" /><Stat n="48" l="Saved" /><Stat n="6" l="Orders" /></View></View><Pressable style={profileStyles.join}><View style={profileStyles.joinIcon}><Ionicons name="construct-outline" size={21} /></View><View style={{ flex: 1 }}><Text style={profileStyles.joinTitle}>Join as a repairer or vendor</Text><Text style={profileStyles.joinSub}>Get jobs, sell products and publish tutorials.</Text></View><Ionicons name="chevron-forward" size={19} color={colors.muted} /></Pressable>{items.map((item, index) => <View key={item} style={profileStyles.item}><View style={profileStyles.itemIcon}><Ionicons name={icons[index] as keyof typeof Ionicons.glyphMap} size={19} /></View><Text style={profileStyles.itemText}>{item}</Text><Ionicons name="chevron-forward" size={17} color={colors.muted} /></View>)}</ScrollView>;
+}
+
+function Product({ image, name, price, onPress }: { image: string; name: string; price: string; onPress: () => void }) { return <Pressable onPress={onPress} style={({ pressed }) => [homeStyles.product, pressed && homeStyles.pressed]}><Image source={{ uri: image }} style={homeStyles.productImage} resizeMode="cover" /><Text style={homeStyles.productName}>{name}</Text><Text style={homeStyles.productPrice}>{price}</Text></Pressable>; }
+function Stat({ n, l }: { n: string; l: string }) { return <View style={{ alignItems: "center" }}><Text style={profileStyles.statN}>{n}</Text><Text style={profileStyles.statL}>{l}</Text></View>; }
+
+const styles = StyleSheet.create({ safe: { flex: 1, backgroundColor: colors.card }, root: { flex: 1 }, viewport: { flex: 1, overflow: "hidden" }, track: { flexDirection: "row", flex: 1 }, page: { flex: 1 } });
+const homeStyles = StyleSheet.create({ content: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 118 }, top: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, eyebrow: { fontSize: 13, color: colors.muted }, greeting: { fontSize: 24, fontWeight: "800", letterSpacing: -0.7, color: colors.ink, marginTop: 3 }, search: { height: 50, borderRadius: 17, backgroundColor: colors.soft, flexDirection: "row", alignItems: "center", paddingHorizontal: 15, gap: 10, marginTop: 18 }, searchText: { fontSize: 13, color: colors.muted }, chips: { marginTop: 18 }, hero: { height: 250, borderRadius: radius.xl, overflow: "hidden", marginTop: 20 }, heroImage: { width: "100%", height: "100%" }, overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,.35)" }, heroCopy: { position: "absolute", left: 20, right: 20, bottom: 20 }, heroKicker: { fontSize: 10, fontWeight: "800", letterSpacing: 1.2, color: "#fff", opacity: 0.85 }, heroTitle: { fontSize: 27, lineHeight: 31, fontWeight: "800", letterSpacing: -0.8, color: "#fff", marginTop: 7, maxWidth: 300 }, heroButton: { alignSelf: "flex-start", marginTop: 14, paddingHorizontal: 15, paddingVertical: 10, borderRadius: 16, backgroundColor: colors.blue, flexDirection: "row", gap: 8, alignItems: "center" }, heroButtonText: { color: "#fff", fontSize: 13, fontWeight: "700" }, actionsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 26 }, quick: { width: "48%", minHeight: 76, borderRadius: 18, backgroundColor: colors.soft, padding: 12, flexDirection: "row", alignItems: "center", gap: 11 }, quickIcon: { width: 40, height: 40, borderRadius: 14, backgroundColor: colors.card, alignItems: "center", justifyContent: "center" }, quickText: { fontSize: 13, fontWeight: "700", color: colors.ink, flex: 1 }, popularSection: { marginTop: 24 }, productRow: { flexDirection: "row", gap: 12 }, product: { flex: 1 }, productImage: { height: 145, width: "100%", borderRadius: radius.lg }, productName: { fontSize: 14, fontWeight: "700", marginTop: 9, color: colors.ink }, productPrice: { fontSize: 13, color: colors.muted, marginTop: 3 }, pressed: { opacity: 0.82, transform: [{ scale: 0.985 }] } });
+const repairStyles = StyleSheet.create({ content: { padding: 18, paddingBottom: 118 }, head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, title: { fontSize: 18, fontWeight: "800" }, step: { fontSize: 12, color: colors.accent, fontWeight: "800", marginTop: 28 }, h1: { fontSize: 29, fontWeight: "800", letterSpacing: -0.8, marginTop: 6 }, sub: { fontSize: 14, lineHeight: 21, color: colors.muted, marginTop: 7 }, device: { marginTop: 22, padding: 16, borderRadius: 18, backgroundColor: colors.soft, flexDirection: "row", alignItems: "center", gap: 12 }, deviceTitle: { fontWeight: "800", fontSize: 15 }, deviceSub: { fontSize: 12, color: colors.muted, marginTop: 3 }, grid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 18 }, issue: { width: "48%", minHeight: 92, borderWidth: 1, borderColor: colors.line, borderRadius: 18, padding: 13, justifyContent: "space-between" }, issueIcon: { width: 37, height: 37, borderRadius: 12, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" }, issueText: { fontSize: 13, fontWeight: "700" }, cta: { height: 54, borderRadius: 18, backgroundColor: colors.ink, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 9, marginTop: 22 }, ctaText: { color: "#fff", fontSize: 15, fontWeight: "800" } });
+const communityStyles = StyleSheet.create({ content: { paddingHorizontal: 18, paddingBottom: 118 }, head: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 8 }, title: { fontSize: 25, fontWeight: "800", letterSpacing: -0.6 }, icons: { flexDirection: "row", gap: 8 }, tabs: { flexDirection: "row", gap: 28, borderBottomWidth: 1, borderBottomColor: colors.line, marginTop: 18 }, tab: { paddingBottom: 12, fontSize: 14, fontWeight: "700", color: colors.muted }, active: { color: colors.ink, borderBottomWidth: 2, borderBottomColor: colors.ink }, compose: { height: 64, flexDirection: "row", alignItems: "center", gap: 10, borderBottomWidth: 1, borderBottomColor: colors.line }, avatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" }, placeholder: { flex: 1, color: colors.muted, fontSize: 14 } });
+const profileStyles = StyleSheet.create({ content: { padding: 18, paddingBottom: 118 }, head: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, title: { fontSize: 26, fontWeight: "800" }, profile: { alignItems: "center", paddingVertical: 20 }, avatar: { width: 88, height: 88, borderRadius: 44 }, nameRow: { flexDirection: "row", alignItems: "center", marginTop: 12 }, name: { fontSize: 21, fontWeight: "800" }, badge: { width: 18, height: 18, borderRadius: 9, backgroundColor: colors.blue, alignItems: "center", justifyContent: "center", marginLeft: 5 }, badgeText: { color: "#fff", fontSize: 10, fontWeight: "800" }, handle: { fontSize: 13, color: colors.muted, marginTop: 3 }, bio: { fontSize: 13, color: colors.muted, marginTop: 9 }, stats: { flexDirection: "row", gap: 45, marginTop: 17 }, statN: { fontSize: 16, fontWeight: "800" }, statL: { fontSize: 11, color: colors.muted, marginTop: 2 }, join: { padding: 15, borderRadius: 18, backgroundColor: colors.accentSoft, flexDirection: "row", alignItems: "center", gap: 11, marginBottom: 15 }, joinIcon: { width: 40, height: 40, borderRadius: 14, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" }, joinTitle: { fontSize: 14, fontWeight: "800" }, joinSub: { fontSize: 12, color: colors.muted, marginTop: 3 }, item: { height: 62, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: 1, borderBottomColor: colors.line }, itemIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" }, itemText: { flex: 1, fontSize: 14, fontWeight: "700" } });

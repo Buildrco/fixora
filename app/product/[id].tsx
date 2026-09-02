@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView, ScrollView, Text, View, StyleSheet, Image, Pressable, TextInput } from "react-native";
+import { ScrollView, Text, View, StyleSheet, Image, Pressable, TextInput } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { colors, radius } from "../../constants/theme";
 import { IconButton } from "../../components/IconButton";

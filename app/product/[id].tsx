@@ -135,10 +135,10 @@ const styles = StyleSheet.create({
   bidButton: { height: 42, borderRadius: 13, paddingHorizontal: 13, backgroundColor: "#fff", justifyContent: "center" },
   bidButtonText: { color: colors.blue, fontSize: 12, fontWeight: "800" },
   bidMessage: { color: "#fff", fontSize: 11, fontWeight: "700", marginTop: 9 },
-  footer: { marginHorizontal: 18, marginBottom: 10, padding: 7, flexDirection: "row", gap: 8, alignItems: "center", backgroundColor: "#fff", borderRadius: 27, borderWidth: 1, borderColor: colors.line, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
-  buyButton: { flex: 1, height: 54, borderRadius: 21, justifyContent: "center", paddingHorizontal: 14, backgroundColor: "#fff" },
+  footer: { marginHorizontal: 18, marginBottom: 10, padding: 7, flexDirection: "row", gap: 8, alignItems: "center", backgroundColor: "#fff", borderRadius: 34, borderWidth: 1, borderColor: colors.line, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
+  buyButton: { flex: 1, height: 54, borderRadius: 27, justifyContent: "center", paddingHorizontal: 14, backgroundColor: "#fff" },
   buyText: { color: colors.ink, fontSize: 12, fontWeight: "800" },
   buyPrice: { color: colors.muted, fontSize: 11, marginTop: 2 },
-  cartButton: { flex: 1.1, height: 54, borderRadius: 21, backgroundColor: colors.blue, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center" },
+  cartButton: { flex: 1.1, height: 54, borderRadius: 27, backgroundColor: colors.blue, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center" },
   cartText: { color: "#fff", fontSize: 14, fontWeight: "800" },
 });

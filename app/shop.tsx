@@ -267,7 +267,7 @@ const s = StyleSheet.create({
   bannerKicker: { color: "rgba(255,255,255,.78)", fontSize: 10, fontWeight: "800", letterSpacing: 1.1 },
   bannerTitle: { color: "#fff", fontSize: 24, fontWeight: "800", marginTop: 5, maxWidth: 190 },
   bannerSubtitle: { color: "rgba(255,255,255,.86)", fontSize: 13, marginTop: 3 },
-  bannerButtonWrap: { position: "absolute", left: 81, bottom: -7, zIndex: 3 },
+  bannerButtonWrap: { position: "absolute", left: "50%", bottom: -7, transform: [{ translateX: -50 }], zIndex: 3 },
   bannerButton: { width: 100, height: 34, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 7, backgroundColor: "rgba(0,0,0,.92)", borderRadius: 17 },
   bannerButtonText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   dots: { alignItems: "center", justifyContent: "center", height: 22 },

@@ -14,18 +14,15 @@ import { BottomNav, MainRoute, useBottomNavVisibility } from "./BottomNav";
 const repairImg = "https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&w=900&q=85";
 const shopImg = "https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?auto=format&fit=crop&w=900&q=85";
 const menuRoutes: MainRoute[] = ["home", "repair", "community", "profile"];
-const menuPaths = ["/", "/repair", "/community", "/profile"] as const;
 
 export function MainPager({ initial }: { initial: MainRoute }) {
-  const router = useRouter();
   const { visibility, onScroll } = useBottomNavVisibility();
   const initialIndex = menuRoutes.indexOf(initial);
   const [pageWidth, setPageWidth] = useState(0);
   const pageProgress = useRef(new Animated.Value(initialIndex)).current;
   const pageIndex = useRef(initialIndex);
 
-  const settleTo = useCallback((target: number, navigate: boolean) => {
-    const current = pageIndex.current;
+  const settleTo = useCallback((target: number) => {
     pageIndex.current = target;
     Animated.spring(pageProgress, {
       toValue: target,
@@ -33,10 +30,8 @@ export function MainPager({ initial }: { initial: MainRoute }) {
       friction: 11,
       overshootClamping: true,
       useNativeDriver: false,
-    }).start(() => {
-      if (navigate && target !== current) router.replace(menuPaths[target] as never);
-    });
-  }, [pageProgress, router]);
+    }).start();
+  }, [pageProgress]);
 
   const onSwipeMove = useCallback((gesture: { dx: number }) => {
     if (!pageWidth) return;
@@ -54,18 +49,32 @@ export function MainPager({ initial }: { initial: MainRoute }) {
     let target = Math.round(projected);
     if (Math.abs(gesture.dx) < 36 && Math.abs(gesture.vx) < 0.2) target = current;
     target = Math.max(0, Math.min(menuRoutes.length - 1, target));
-    settleTo(target, true);
+    settleTo(target);
   }, [pageWidth, settleTo]);
 
   const onSwipeMoveRef = useRef(onSwipeMove);
   const onSwipeEndRef = useRef(onSwipeEnd);
   onSwipeMoveRef.current = onSwipeMove;
   onSwipeEndRef.current = onSwipeEnd;
+  const gestureSettled = useRef(false);
   const swipeResponder = useRef(PanResponder.create({
+    onPanResponderGrant: () => {
+      gestureSettled.current = false;
+      pageProgress.stopAnimation();
+    },
     onMoveShouldSetPanResponderCapture: (_, gesture) => Math.abs(gesture.dx) > Math.abs(gesture.dy) + 10 && Math.abs(gesture.dx) > 8,
     onPanResponderMove: (_, gesture) => onSwipeMoveRef.current(gesture),
-    onPanResponderRelease: (_, gesture) => onSwipeEndRef.current(gesture),
-    onPanResponderTerminate: (_, gesture) => onSwipeEndRef.current(gesture),
+    onPanResponderRelease: (_, gesture) => {
+      if (gestureSettled.current) return;
+      gestureSettled.current = true;
+      onSwipeEndRef.current(gesture);
+    },
+    onPanResponderTerminate: () => {
+      if (gestureSettled.current) return;
+      gestureSettled.current = true;
+      settleTo(pageIndex.current);
+    },
+    onPanResponderTerminationRequest: () => false,
   })).current;
 
   return <SafeAreaProvider><SafeAreaView edges={["top"]} style={styles.safe}>
@@ -78,7 +87,7 @@ export function MainPager({ initial }: { initial: MainRoute }) {
           <View style={[styles.page, { width: pageWidth || 1 }]}><ProfilePage onScroll={onScroll} /></View>
         </Animated.View>
       </View>
-      <BottomNav active={initial} visibility={visibility} pageProgress={pageProgress} onSelect={index => settleTo(index, true)} swipePanHandlers={swipeResponder.panHandlers} />
+      <BottomNav active={initial} visibility={visibility} pageProgress={pageProgress} onSelect={index => settleTo(index)} swipePanHandlers={swipeResponder.panHandlers} />
     </View>
   </SafeAreaView></SafeAreaProvider>;
 }

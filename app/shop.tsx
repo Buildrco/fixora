@@ -45,8 +45,8 @@ const categories: Category[] = [
   ] }
 ];
 
-const heroPath = "M28 0 C12 0 0 12 0 28 L0 174 C0 195 13 208 35 208 L101 208 C113 208 120 202 124 191 C129 177 140 168 155 168 L198 168 C213 168 224 177 229 191 C233 202 240 208 252 208 L365 208 C387 208 400 195 400 174 L400 28 C400 12 388 0 372 0 Z";
-const heroAccent = "M0 187 C24 151 83 153 128 179 C158 196 184 199 216 184 C270 159 348 155 400 185 L400 220 L0 220 Z";
+const heroPath = "M28 0 C12 0 0 12 0 28 L0 174 C0 195 13 208 35 208 L74 208 C91 208 97 202 103 192 C109 181 121 177 140 177 L184 177 C203 177 216 183 222 193 C228 203 235 208 250 208 L365 208 C387 208 400 195 400 174 L400 28 C400 12 388 0 372 0 Z";
+const heroAccent = "M0 190 C25 171 57 164 91 170 C122 176 150 191 181 193 C222 196 252 171 292 167 C339 162 374 174 400 190 L400 220 L0 220 Z";
 const filterPath = "M22 1 C10 1 1 10 1 22 C1 34 10 43 22 43 C31 43 37 38 42 32 C45 28 48 28 55 28 C58 28 59 31 61 34 C63 37 67 39 73 39 H124 C135 39 143 32 143 22 C143 12 135 5 124 5 H73 C67 5 63 7 61 10 C59 13 58 16 55 16 C48 16 45 16 42 12 C37 6 31 1 22 1 Z";
 
 function HeroShape({ tone, id, width }: { tone: string; id: string; width: number }) {
@@ -62,18 +62,18 @@ function HeroShape({ tone, id, width }: { tone: string; id: string; width: numbe
 function BrandFilterShape({ brand, active }: { brand: Brand; active: boolean }) {
   return <View style={s.brandShape}>
     <Svg width={146} height={44} viewBox="0 0 146 44">
-      <Path d={filterPath} fill={active ? "#EAF1FF" : "#fff"} stroke={active ? "#BFD1F8" : "#D8D8D8"} strokeWidth={1.2} />
-      <Circle cx={22} cy={22} r={19.5} fill={brand.tone} />
+      <Path d={filterPath} fill={active ? "#2D6BDA" : "#fff"} stroke={active ? "#2D6BDA" : "#D8D8D8"} strokeWidth={1.2} />
+      <Circle cx={22} cy={22} r={19.5} fill={active ? "#2D6BDA" : "#fff"} />
     </Svg>
-    <View style={s.brandMarkWrap}><BrandMark brand={brand} /></View>
+    <View style={s.brandMarkWrap}><BrandMark brand={brand} light={active} /></View>
     <View style={s.brandTextWrap}><Text style={[s.brandText, active && s.brandTextActive]}>{brand.label}</Text></View>
   </View>;
 }
 
-function BrandMark({ brand }: { brand: Brand }) {
-  if (brand.mark === "apple") return <Ionicons name="logo-apple" size={22} color="#fff" />;
-  if (brand.mark === "SAMSUNG") return <Text style={s.samsungMark}>SAMSUNG</Text>;
-  return <Text style={s.brandMark}>{brand.mark}</Text>;
+function BrandMark({ brand, light = false }: { brand: Brand; light?: boolean }) {
+  if (brand.mark === "apple") return <Ionicons name="logo-apple" size={21} color={light ? "#fff" : "#161616"} />;
+  if (brand.mark === "SAMSUNG") return <Text style={[s.samsungMark, light && s.brandMarkLight]}>SAMSUNG</Text>;
+  return <Text style={[s.brandMark, light && s.brandMarkLight]}>{brand.mark}</Text>;
 }
 
 export default function Shop() {
@@ -144,7 +144,7 @@ const s = StyleSheet.create({
   bannerKicker: { color: "rgba(255,255,255,.78)", fontSize: 10, fontWeight: "800", letterSpacing: 1.1 },
   bannerTitle: { color: "#fff", fontSize: 24, fontWeight: "800", marginTop: 5, maxWidth: 190 },
   bannerSubtitle: { color: "rgba(255,255,255,.86)", fontSize: 13, marginTop: 3 },
-  bannerButtonWrap: { position: "absolute", left: 20, bottom: 3, zIndex: 3 },
+  bannerButtonWrap: { position: "absolute", left: 34, bottom: -3, zIndex: 3 },
   bannerButton: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(0,0,0,.72)", borderRadius: 15, paddingHorizontal: 13, paddingVertical: 8 },
   bannerButtonText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   dots: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 5, height: 22 },
@@ -156,8 +156,9 @@ const s = StyleSheet.create({
   brandShape: { width: 146, height: 44, position: "relative" },
   brandMarkWrap: { position: "absolute", left: 0, top: 0, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   brandTextWrap: { position: "absolute", left: 59, right: 5, top: 0, height: 44, alignItems: "center", justifyContent: "center" },
-  brandMark: { color: "#fff", fontSize: 17, fontWeight: "800" },
-  samsungMark: { color: "#fff", fontSize: 6, fontWeight: "900", letterSpacing: .2 },
+  brandMark: { color: "#161616", fontSize: 17, fontWeight: "800" },
+  brandMarkLight: { color: "#fff" },
+  samsungMark: { color: "#161616", fontSize: 6, fontWeight: "900", letterSpacing: .2 },
   brandText: { fontSize: 13, fontWeight: "700", color: colors.ink },
   brandTextActive: { color: "#1C4EA8" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 14 },

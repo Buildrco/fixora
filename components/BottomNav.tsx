@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useRef, useState } from "react";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { FontAwesome6 } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { House, MessageCircle, UserRound, Wrench } from "lucide-react-native";
 import { colors } from "../constants/theme";
 
 export type MainRoute = "home" | "repair" | "community" | "profile";
@@ -12,7 +12,13 @@ const routes: Array<{ key: MainRoute; label: string; path: string }> = [
   { key: "community", label: "Community", path: "/community" },
   { key: "profile", label: "Profile", path: "/profile" },
 ];
-const icons = [House, Wrench, MessageCircle, UserRound] as const;
+type IconName = keyof typeof FontAwesome6.glyphMap;
+const iconStates: Array<{ inactive: IconName; active: IconName }> = [
+  { inactive: "house", active: "house-chimney" },
+  { inactive: "wrench", active: "screwdriver-wrench" },
+  { inactive: "comments", active: "comment-dots" },
+  { inactive: "user", active: "circle-user" },
+];
 
 export function useBottomNavVisibility() {
   const visibility = useRef(new Animated.Value(1)).current;
@@ -25,16 +31,15 @@ export function useBottomNavVisibility() {
     lastY.current = nextY;
     if (movingDown && !hidden.current) {
       hidden.current = true;
-      Animated.timing(visibility, { toValue: 0, duration: 220, useNativeDriver: true }).start();
+      Animated.timing(visibility, { toValue: 0, duration: 520, useNativeDriver: true }).start();
     } else if (movingUp && hidden.current) {
       hidden.current = false;
-      Animated.timing(visibility, { toValue: 1, duration: 240, useNativeDriver: true }).start();
+      Animated.timing(visibility, { toValue: 1, duration: 560, useNativeDriver: true }).start();
     }
   }, [visibility]);
   return { visibility, onScroll };
 }
 
-type SwipeGesture = { dx: number; dy: number; vx: number; vy: number };
 type BottomNavProps = { active: MainRoute; visibility: Animated.Value; pageProgress?: Animated.Value; onSelect?: (index: number) => void; swipePanHandlers?: Record<string, any> };
 
 export function BottomNav({ active, visibility, pageProgress, onSelect, swipePanHandlers }: BottomNavProps) {
@@ -49,14 +54,43 @@ export function BottomNav({ active, visibility, pageProgress, onSelect, swipePan
   return <Animated.View style={[styles.shell, { paddingBottom: Math.max(insets.bottom, 14), opacity: visibility, transform: [{ translateY: visibility.interpolate({ inputRange: [0, 1], outputRange: [110, 0] }) }] }]}>
     <View style={styles.bar} onLayout={event => setBarWidth(event.nativeEvent.layout.width)} {...swipePanHandlers}>
       <Animated.View pointerEvents="none" style={[styles.highlight, { left: highlightLeft, width: highlightWidth }]} />
-      {routes.map((route, index) => <Pressable key={route.key} testID={"nav-" + route.key} onPress={() => select(index)} style={styles.touch}>
-        <Animated.View style={[styles.item, { opacity: progress.interpolate({ inputRange: [index - 1, index, index + 1], outputRange: [0.44, 1, 0.44], extrapolate: "clamp" }) }]}>
-          {(() => { const Icon = icons[index]; return <><Animated.View style={{ opacity: progress.interpolate({ inputRange: [index - 1, index, index + 1], outputRange: [1, 0, 1], extrapolate: "clamp" }) }}><Icon size={20} color={colors.ink} fill={colors.ink} strokeWidth={2.5} /></Animated.View><Animated.View style={[StyleSheet.absoluteFillObject, { alignItems: "center", justifyContent: "center", opacity: progress.interpolate({ inputRange: [index - 1, index, index + 1], outputRange: [0, 1, 0], extrapolate: "clamp" }) }]}><Icon size={20} color="#fff" fill="#fff" strokeWidth={2.5} /></Animated.View></>; })()}
-          <Animated.View style={{ opacity: progress.interpolate({ inputRange: [index - 1, index, index + 1], outputRange: [0, 1, 0], extrapolate: "clamp" }), maxWidth: progress.interpolate({ inputRange: [index - 1, index, index + 1], outputRange: [0, 58, 0], extrapolate: "clamp" }) }}><Text numberOfLines={1} style={styles.label}>{route.label}</Text></Animated.View>
-        </Animated.View>
-      </Pressable>)}
+      {routes.map((route, index) => {
+        const inactiveIcon = iconStates[index].inactive;
+        const activeIcon = iconStates[index].active;
+        const stateInput = [index - 1, index, index + 1];
+        const inactiveOpacity = progress.interpolate({ inputRange: stateInput, outputRange: [1, 0, 1], extrapolate: "clamp" });
+        const activeOpacity = progress.interpolate({ inputRange: stateInput, outputRange: [0, 1, 0], extrapolate: "clamp" });
+        const labelOpacity = progress.interpolate({ inputRange: stateInput, outputRange: [0, 1, 0], extrapolate: "clamp" });
+        const labelWidth = progress.interpolate({ inputRange: stateInput, outputRange: [0, 58, 0], extrapolate: "clamp" });
+        const labelTranslateX = progress.interpolate({ inputRange: stateInput, outputRange: [-10, 0, -10], extrapolate: "clamp" });
+        return <Pressable key={route.key} testID={"nav-" + route.key} onPress={() => select(index)} style={styles.touch}>
+          <Animated.View style={[styles.item, { opacity: progress.interpolate({ inputRange: stateInput, outputRange: [0.48, 1, 0.48], extrapolate: "clamp" }) }]}>
+            <View style={styles.iconSlot}>
+              <Animated.View style={{ opacity: inactiveOpacity }}>
+                <FontAwesome6 name={inactiveIcon} size={18} color={colors.ink} />
+              </Animated.View>
+              <Animated.View style={[StyleSheet.absoluteFillObject, styles.iconOverlay, { opacity: activeOpacity }]}>
+                <FontAwesome6 name={activeIcon} size={18} color="#fff" />
+              </Animated.View>
+            </View>
+            <Animated.View style={[styles.labelWindow, { opacity: labelOpacity, maxWidth: labelWidth, transform: [{ translateX: labelTranslateX }] }]}>
+              <Text numberOfLines={1} style={styles.label}>{route.label}</Text>
+            </Animated.View>
+          </Animated.View>
+        </Pressable>;
+      })}
     </View>
   </Animated.View>;
 }
 
-const styles = StyleSheet.create({ shell: { position: "absolute", left: 0, right: 0, bottom: 0, alignItems: "center", zIndex: 20 }, bar: { minHeight: 60, width: "88%", paddingHorizontal: 7, borderRadius: 32, backgroundColor: colors.card, flexDirection: "row", alignItems: "center", justifyContent: "space-around", shadowColor: colors.ink, shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 5 }, elevation: 8 }, highlight: { position: "absolute", top: 10, height: 40, borderRadius: 20, backgroundColor: colors.blue }, touch: { flex: 1, minHeight: 52, alignItems: "center", justifyContent: "center", zIndex: 2 }, item: { height: 40, paddingHorizontal: 5, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 }, label: { color: "#fff", fontSize: 11, fontWeight: "800" } });
+const styles = StyleSheet.create({
+  shell: { position: "absolute", left: 0, right: 0, bottom: 0, alignItems: "center", zIndex: 20 },
+  bar: { minHeight: 60, width: "88%", paddingHorizontal: 7, borderRadius: 32, backgroundColor: colors.card, flexDirection: "row", alignItems: "center", justifyContent: "space-around" },
+  highlight: { position: "absolute", top: 10, height: 40, borderRadius: 20, backgroundColor: colors.blue },
+  touch: { flex: 1, minHeight: 52, alignItems: "center", justifyContent: "center", zIndex: 2 },
+  item: { height: 40, width: "100%", paddingHorizontal: 2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  iconSlot: { width: 24, height: 24, alignItems: "center", justifyContent: "center", position: "relative" },
+  iconOverlay: { alignItems: "center", justifyContent: "center" },
+  labelWindow: { overflow: "hidden" },
+  label: { color: "#fff", fontSize: 11, fontWeight: "800" },
+});

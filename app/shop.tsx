@@ -158,15 +158,20 @@ export default function Shop() {
       brandProgress.stopAnimation();
       productProgress.stopAnimation();
       brandStartOffset.current = brandOffset.current;
-      brandStartIndex.current = selectedBrandIndex;
+      brandStartIndex.current = Math.round(productProgressValue.current);
       productStartProgress.current = productProgressValue.current;
     },
     onPanResponderMove: (_, gesture) => {
-      const next = Math.max(0, Math.min(maxBrandScroll, brandStartOffset.current - gesture.dx));
-      const nextBrandProgress = Math.max(0, Math.min(category.brands.length - 1, brandStartIndex.current - gesture.dx / brandStep));
       const nextProductProgress = Math.max(0, Math.min(category.brands.length - 1, productStartProgress.current - gesture.dx / brandViewportWidth));
-      brandOffset.current = next;
-      brandScroll.setValue(next);
+      const nextBrandProgress = nextProductProgress;
+      const lowerIndex = Math.floor(nextProductProgress);
+      const upperIndex = Math.min(category.brands.length - 1, lowerIndex + 1);
+      const between = nextProductProgress - lowerIndex;
+      const lowerOffset = visibleBrandOffset(lowerIndex, brandStartOffset.current);
+      const upperOffset = visibleBrandOffset(upperIndex, brandStartOffset.current);
+      const nextBrandOffset = lowerOffset + (upperOffset - lowerOffset) * between;
+      brandOffset.current = nextBrandOffset;
+      brandScroll.setValue(nextBrandOffset);
       brandProgress.setValue(nextBrandProgress);
       productProgressValue.current = nextProductProgress;
       productProgress.setValue(nextProductProgress);
@@ -176,7 +181,7 @@ export default function Shop() {
       filterGestureSettled.current = true;
       const moved = Math.abs(gesture.dx) > 36 || Math.abs(gesture.vx) > 0.2;
       const direction = gesture.dx < 0 ? 1 : -1;
-      const nextIndex = Math.max(0, Math.min(category.brands.length - 1, brandStartIndex.current + (moved ? direction : 0)));
+      const nextIndex = Math.max(0, Math.min(category.brands.length - 1, Math.round(productStartProgress.current) + (moved ? direction : 0)));
       animateBrandTo(nextIndex, visibleBrandOffset(nextIndex));
     },
     onPanResponderTerminate: () => {

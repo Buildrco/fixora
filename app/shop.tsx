@@ -79,23 +79,23 @@ function HeroShape({ tone, id, width }: { tone: string; id: string; width: numbe
   </Svg>;
 }
 
-function BrandFilterShape({ brand, progress }: { brand: Brand; progress: any }) {
+function BrandFilterShape({ brand, progress, active }: { brand: Brand; progress: any; active: boolean }) {
   const inactiveProgress = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0], extrapolate: "clamp" });
   return <View style={s.brandShape}>
     <Svg width={146} height={44} viewBox="0 0 146 44">
       <Path d={filterPath} fill="transparent" stroke="#D8D8D8" strokeWidth={1.2} />
       <Circle cx={22} cy={22} r={19.5} fill="transparent" stroke="#D8D8D8" strokeWidth={1.2} />
     </Svg>
-    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { opacity: progress }]}>
+    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { opacity: active ? 1 : progress }]}>
       <Svg width={146} height={44} viewBox="0 0 146 44">
         <Path d={filterPath} fill="#2D6BDA" stroke="#2D6BDA" strokeWidth={1.2} />
         <Circle cx={22} cy={22} r={19.5} fill="#2D6BDA" />
       </Svg>
     </Animated.View>
-    <Animated.View style={[s.brandMarkWrap, { opacity: inactiveProgress }]}><BrandMark brand={brand} /></Animated.View>
-    <Animated.View style={[s.brandMarkWrap, { opacity: progress }]}><BrandMark brand={brand} light /></Animated.View>
-    <Animated.View style={[s.brandTextWrap, { opacity: inactiveProgress }]}><Text style={s.brandText}>{brand.label}</Text></Animated.View>
-    <Animated.View style={[s.brandTextWrap, { opacity: progress }]}><Text style={[s.brandText, s.brandTextActive]}>{brand.label}</Text></Animated.View>
+    <Animated.View style={[s.brandMarkWrap, { opacity: active ? 0 : inactiveProgress }]}><BrandMark brand={brand} /></Animated.View>
+    <Animated.View style={[s.brandMarkWrap, { opacity: active ? 1 : progress }]}><BrandMark brand={brand} light /></Animated.View>
+    <Animated.View style={[s.brandTextWrap, { opacity: active ? 0 : inactiveProgress }]}><Text style={s.brandText}>{brand.label}</Text></Animated.View>
+    <Animated.View style={[s.brandTextWrap, { opacity: active ? 1 : progress }]}><Text style={[s.brandText, s.brandTextActive]}>{brand.label}</Text></Animated.View>
   </View>;
 }
 
@@ -236,7 +236,7 @@ export default function Shop() {
             const range = [(index - 1) * brandStep, index * brandStep, (index + 1) * brandStep];
             const progress = brandProgress.interpolate({ inputRange: range, outputRange: [0, 1, 0], extrapolate: "clamp" });
             return <View key={brand.label} style={s.brandSlot}><Pressable onPress={() => selectBrand(brand, index)} style={({ pressed }) => [s.brandCard, pressed && s.pressed]}>
-              <BrandFilterShape brand={brand} progress={progress} />
+              <BrandFilterShape brand={brand} progress={progress} active={selectedBrandIndex === index} />
             </Pressable></View>;
           })}
         </Animated.View>

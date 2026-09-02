@@ -90,7 +90,7 @@ export default function ProductDetails() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.card },
-  scrollContent: { paddingBottom: 22 },
+  scrollContent: { paddingTop: 10, paddingBottom: 22 },
   imageWrap: { height: 345, backgroundColor: colors.soft },
   image: { width: "100%", height: "100%" },
   imageHeader: { position: "absolute", top: 16, left: 16, right: 16, flexDirection: "row", justifyContent: "space-between" },
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   imageDots: { position: "absolute", bottom: 15, left: 0, right: 0, flexDirection: "row", justifyContent: "center", gap: 5 },
   imageDotActive: { width: 18, height: 5, borderRadius: 3, backgroundColor: colors.ink },
   imageDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "rgba(23,23,23,.25)" },
-  content: { padding: 18 },
+  content: { padding: 18, paddingTop: 22 },
   category: { fontSize: 10, fontWeight: "800", color: colors.muted, letterSpacing: 1.2 },
   titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginTop: 7 },
   titleCopy: { flex: 1 },
@@ -135,10 +135,10 @@ const styles = StyleSheet.create({
   bidButton: { height: 42, borderRadius: 13, paddingHorizontal: 13, backgroundColor: "#fff", justifyContent: "center" },
   bidButtonText: { color: colors.blue, fontSize: 12, fontWeight: "800" },
   bidMessage: { color: "#fff", fontSize: 11, fontWeight: "700", marginTop: 9 },
-  footer: { paddingHorizontal: 18, paddingTop: 10, flexDirection: "row", gap: 9, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.line },
-  buyButton: { flex: 1, height: 54, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, justifyContent: "center", paddingHorizontal: 14 },
+  footer: { marginHorizontal: 18, marginBottom: 10, padding: 7, flexDirection: "row", gap: 8, alignItems: "center", backgroundColor: "#fff", borderRadius: 27, borderWidth: 1, borderColor: colors.line, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
+  buyButton: { flex: 1, height: 54, borderRadius: 21, justifyContent: "center", paddingHorizontal: 14, backgroundColor: "#fff" },
   buyText: { color: colors.ink, fontSize: 12, fontWeight: "800" },
   buyPrice: { color: colors.muted, fontSize: 11, marginTop: 2 },
-  cartButton: { flex: 1.1, height: 54, borderRadius: radius.md, backgroundColor: colors.blue, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center" },
+  cartButton: { flex: 1.1, height: 54, borderRadius: 21, backgroundColor: colors.blue, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center" },
   cartText: { color: "#fff", fontSize: 14, fontWeight: "800" },
 });

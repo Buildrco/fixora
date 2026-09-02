@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { Animated, Image, PanResponder, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Image, PanResponder, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";

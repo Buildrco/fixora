@@ -91,7 +91,7 @@ export default function Checkout() {
         })}</View>
 
         {deliveryMode !== "pickup" ? <>
-          <View style={styles.sectionRow}><Text style={styles.sectionTitle}>Drop-off point</Text><Text style={styles.editLabel}>EDIT</Text></View>
+          <View style={styles.sectionRow}><Text style={styles.sectionRowTitle}>Drop-off point</Text><Text style={styles.editLabel}>EDIT</Text></View>
           <View style={styles.addressCard}><View style={styles.addressIcon}><Ionicons name="location" size={17} color={colors.blue} /></View><View style={styles.addressCopy}><Text style={styles.addressLabel}>DELIVER TO</Text><TextInput value={address} onChangeText={setAddress} placeholder="Add a delivery address" placeholderTextColor={colors.muted} style={styles.addressInput} /></View><Ionicons name="chevron-forward" size={17} color={colors.muted} /></View>
           <View style={styles.noteRow}><Ionicons name="information-circle-outline" size={16} color={colors.muted} /><TextInput value={note} onChangeText={setNote} placeholder="Add a note for your rider (optional)" placeholderTextColor={colors.muted} style={styles.noteInput} /></View>
         </> : <View style={styles.pickupNotice}><View style={styles.pickupIcon}><Ionicons name="storefront-outline" size={19} color="#fff" /></View><View><Text style={styles.pickupTitle}>Ready for collection</Text><Text style={styles.pickupCopy}>We’ll notify you when the seller has packed it.</Text></View></View>}

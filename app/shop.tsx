@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { Animated, ScrollView, Text, View, StyleSheet, Image, Pressable, useWindowDimensions } from "react-native";
+import { Animated, PanResponder, ScrollView, Text, View, StyleSheet, Image, Pressable, useWindowDimensions } from "react-native";
 import Svg, { Circle, ClipPath, Defs, G, Path } from "react-native-svg";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { colors, radius } from "../constants/theme";
@@ -64,15 +64,9 @@ function BrandFilterShape({ brand, progress }: { brand: Brand; progress: any }) 
   const inactiveProgress = progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
   return <View style={s.brandShape}>
     <Svg width={146} height={44} viewBox="0 0 146 44">
-      <Path d={filterPath} fill="#fff" stroke="#D8D8D8" strokeWidth={1.2} />
-      <Circle cx={22} cy={22} r={19.5} fill="#fff" />
+      <Path d={filterPath} fill="transparent" stroke="#D8D8D8" strokeWidth={1.2} />
+      <Circle cx={22} cy={22} r={19.5} fill="transparent" stroke="#D8D8D8" strokeWidth={1.2} />
     </Svg>
-    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, s.brandHighlight, { opacity: progress, transform: [{ scaleX: progress.interpolate({ inputRange: [0, 1], outputRange: [0.84, 1] }) }] }]}>
-      <Svg width={146} height={44} viewBox="0 0 146 44">
-        <Path d={filterPath} fill="#2D6BDA" stroke="#2D6BDA" strokeWidth={1.2} />
-        <Circle cx={22} cy={22} r={19.5} fill="#2D6BDA" />
-      </Svg>
-    </Animated.View>
     <Animated.View style={[s.brandMarkWrap, { opacity: inactiveProgress }]}><BrandMark brand={brand} /></Animated.View>
     <Animated.View style={[s.brandMarkWrap, { opacity: progress }]}><BrandMark brand={brand} light /></Animated.View>
     <Animated.View style={[s.brandTextWrap, { opacity: inactiveProgress }]}><Text style={s.brandText}>{brand.label}</Text></Animated.View>
@@ -93,11 +87,14 @@ export default function Shop() {
   const [selectedBrand, setSelectedBrand] = useState(categories[0].brands[0].label);
   const bannerScroll = useRef(new Animated.Value(0)).current;
   const brandScroll = useRef(new Animated.Value(0)).current;
-  const brandListRef = useRef<any>(null);
+  const brandOffset = useRef(0);
+  const brandStartOffset = useRef(0);
+  const brandStartX = useRef(0);
   const category = categories[activeCategory];
   const bannerWidth = Math.max(width - 36, 280);
   const pageSize = bannerWidth + 12;
   const products = selectedBrand ? category.products.filter(product => product.brand === selectedBrand) : category.products;
+  const maxBrandScroll = Math.max(0, (category.brands.length - 1) * brandStep);
   const dotIndicatorX = bannerScroll.interpolate({
     inputRange: [0, pageSize * (categories.length - 1)],
     outputRange: [0, 10 * (categories.length - 1)],
@@ -109,17 +106,40 @@ export default function Shop() {
     setActiveCategory(next);
     setSelectedBrand(categories[next].brands[0].label);
     brandScroll.setValue(0);
-  };
-
-  const onBrandEnd = (event: any) => {
-    const next = Math.max(0, Math.min(category.brands.length - 1, Math.round(event.nativeEvent.contentOffset.x / brandStep)));
-    setSelectedBrand(category.brands[next].label);
+    brandOffset.current = 0;
   };
 
   const selectBrand = (brand: Brand, index: number) => {
     setSelectedBrand(brand.label);
-    brandListRef.current?.scrollTo({ x: index * brandStep, animated: true });
+    const target = index * brandStep;
+    brandOffset.current = target;
+    Animated.spring(brandScroll, { toValue: target, useNativeDriver: true, tension: 70, friction: 11 }).start();
   };
+
+  const filterPanResponder = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > Math.abs(gesture.dy) + 8 && Math.abs(gesture.dx) > 12,
+    onPanResponderGrant: (_, gesture) => {
+      brandStartX.current = gesture.x0;
+      brandStartOffset.current = brandOffset.current;
+    },
+    onPanResponderMove: (_, gesture) => {
+      const next = Math.max(0, Math.min(maxBrandScroll, brandStartOffset.current - gesture.dx));
+      brandOffset.current = next;
+      brandScroll.setValue(next);
+    },
+    onPanResponderRelease: () => {
+      const nextIndex = Math.max(0, Math.min(category.brands.length - 1, Math.round(brandOffset.current / brandStep)));
+      const target = nextIndex * brandStep;
+      brandOffset.current = target;
+      setSelectedBrand(category.brands[nextIndex].label);
+      Animated.spring(brandScroll, { toValue: target, useNativeDriver: true, tension: 70, friction: 11 }).start();
+    },
+    onPanResponderTerminate: () => {
+      const target = Math.max(0, Math.min(maxBrandScroll, Math.round(brandOffset.current / brandStep) * brandStep));
+      brandOffset.current = target;
+      Animated.spring(brandScroll, { toValue: target, useNativeDriver: true, tension: 70, friction: 11 }).start();
+    },
+  }), [category, maxBrandScroll, brandScroll]);
 
   return <SafeAreaProvider><SafeAreaView edges={["top"]} style={s.safe}>
     <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
@@ -139,18 +159,25 @@ export default function Shop() {
       </Animated.ScrollView>
       <View style={s.dots}><View style={s.dotTrack}>{categories.map(item => <View key={item.id} style={s.dot} />)}<Animated.View style={[s.dotActiveIndicator, { transform: [{ translateX: dotIndicatorX }] }]} /></View></View>
 
-      <Animated.ScrollView ref={brandListRef} key={category.id} horizontal decelerationRate="fast" snapToInterval={brandStep} snapToAlignment="start" showsHorizontalScrollIndicator={false} contentContainerStyle={s.brandList} onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: brandScroll } } }], { useNativeDriver: true })} scrollEventThrottle={16} onMomentumScrollEnd={onBrandEnd} onScrollEndDrag={onBrandEnd}>
-        {category.brands.map((brand, index) => {
-          const range = [(index - 1) * brandStep, index * brandStep, (index + 1) * brandStep];
-          const motion = { opacity: brandScroll.interpolate({ inputRange: range, outputRange: [0.62, 1, 0.62], extrapolate: "clamp" }), transform: [{ translateY: brandScroll.interpolate({ inputRange: range, outputRange: [4, 0, 4], extrapolate: "clamp" }) }] };
-          const progress = brandScroll.interpolate({ inputRange: range, outputRange: [0, 1, 0], extrapolate: "clamp" });
-          return <Animated.View key={brand.label} style={[s.brandSlot, motion]}><Pressable onPress={() => selectBrand(brand, index)} style={({ pressed }) => [s.brandCard, pressed && s.pressed]}>
-            <BrandFilterShape brand={brand} progress={progress} />
-          </Pressable></Animated.View>;
-        })}
-      </Animated.ScrollView>
+      <View style={s.brandViewport} {...filterPanResponder.panHandlers}>
+        <Animated.View pointerEvents="none" style={[s.brandHighlightViewport, { width: brandScroll.interpolate({ inputRange: [0, Math.max(brandStep / 2, 1), Math.max(brandStep, 2), Math.max(maxBrandScroll, brandStep * 2)], outputRange: [146, 174, 146, 146], extrapolate: "clamp" }) }]}>
+          <Svg width="100%" height={44} viewBox="0 0 146 44" preserveAspectRatio="none">
+            <Path d={filterPath} fill="#2D6BDA" stroke="#2D6BDA" strokeWidth={1.2} />
+            <Circle cx={22} cy={22} r={19.5} fill="#2D6BDA" />
+          </Svg>
+        </Animated.View>
+        <Animated.View style={[s.brandRow, { width: category.brands.length * brandStep, transform: [{ translateX: brandScroll.interpolate({ inputRange: [0, Math.max(maxBrandScroll, 1)], outputRange: [0, -maxBrandScroll], extrapolate: "clamp" }) }] }]}>
+          {category.brands.map((brand, index) => {
+            const range = [(index - 1) * brandStep, index * brandStep, (index + 1) * brandStep];
+            const progress = brandScroll.interpolate({ inputRange: range, outputRange: [0, 1, 0], extrapolate: "clamp" });
+            return <View key={brand.label} style={s.brandSlot}><Pressable onPress={() => selectBrand(brand, index)} style={({ pressed }) => [s.brandCard, pressed && s.pressed]}>
+              <BrandFilterShape brand={brand} progress={progress} />
+            </Pressable></View>;
+          })}
+        </Animated.View>
+      </View>
 
-      <View style={s.grid}>{products.map(product => <Pressable key={product.name} style={({ pressed }) => [s.product, pressed && s.pressedProduct]}>
+      <View style={s.grid}>{products.map(product => <Pressable key={product.name} onPress={() => router.push(`/product/${product.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}` as any)} style={({ pressed }) => [s.product, pressed && s.pressedProduct]}>
         <Image source={{ uri: product.image }} style={s.image} resizeMode="cover" /><Text style={s.name}>{product.name}</Text><Text style={s.price}>{product.price}</Text><Text style={s.seller}>✓ Verified seller</Text>
       </Pressable>)}</View>
     </ScrollView>
@@ -178,13 +205,14 @@ const s = StyleSheet.create({
   dotTrack: { flexDirection: "row", alignItems: "center", gap: 5, position: "relative" },
   dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.line },
   dotActiveIndicator: { position: "absolute", left: -6, top: 0, width: 17, height: 5, borderRadius: 3, backgroundColor: colors.ink },
-  brandList: { paddingVertical: 10 },
+  brandViewport: { height: 78, overflow: "hidden", position: "relative", justifyContent: "center" },
+  brandRow: { flexDirection: "row", alignItems: "center", position: "absolute", left: 0, top: 17 },
+  brandHighlightViewport: { position: "absolute", left: 0, top: 17, height: 44, zIndex: 0 },
   brandSlot: { width: 146, height: 44, marginRight: 10 },
   brandCard: { width: 146, height: 44 },
   brandShape: { width: 146, height: 44, position: "relative" },
-  brandHighlight: { zIndex: 1 },
-  brandMarkWrap: { position: "absolute", left: 0, top: 0, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  brandTextWrap: { position: "absolute", left: 59, right: 5, top: 0, height: 44, alignItems: "center", justifyContent: "center" },
+  brandMarkWrap: { position: "absolute", left: 0, top: 0, width: 44, height: 44, alignItems: "center", justifyContent: "center", zIndex: 2 },
+  brandTextWrap: { position: "absolute", left: 59, right: 5, top: 0, height: 44, alignItems: "center", justifyContent: "center", zIndex: 2 },
   brandMark: { color: "#161616", fontSize: 17, fontWeight: "800" },
   brandMarkLight: { color: "#fff" },
   samsungMark: { color: "#161616", fontSize: 6, fontWeight: "900", letterSpacing: .2 },

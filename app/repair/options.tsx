@@ -6,7 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-
 import { colors, radius } from "../../constants/theme";
 import { IconButton } from "../../components/IconButton";
 
-const brands = ["Apple", "Samsung", "Google", "Tecno", "Other"];
+const brandsByCategory: Record<string, string[]> = { Phone: ["Apple", "Samsung", "Google", "Tecno", "Other"], Laptop: ["HP", "Lenovo", "Dell", "ASUS", "Other"], MacBook: ["Apple"], Tablet: ["Apple", "Samsung", "Other"] };
 const issueChoices: Record<string, string[]> = {
   Battery: ["Drains quickly", "Won't charge", "Swollen battery", "Random shutdowns"],
   "Broken screen": ["Cracked glass", "Black display", "Touch not working", "Lines on screen"],
@@ -22,6 +22,7 @@ export default function RepairOptions() {
   const router = useRouter();
   const { issue, brand: queryBrand, model: queryModel, category } = useLocalSearchParams<{ issue?: string; brand?: string; model?: string; category?: string }>();
   const issueName = String(issue || "General repair");
+  const brandOptions = brandsByCategory[String(category || "Phone")] || brandsByCategory.Phone;
   const [brand, setBrand] = React.useState(String(queryBrand || "Apple"));
   const [selectedChoice, setSelectedChoice] = React.useState("");
   const [model, setModel] = React.useState(String(queryModel || ""));
@@ -31,7 +32,7 @@ export default function RepairOptions() {
     <View style={s.header}><IconButton name="chevron-back" onPress={() => router.back()} /><Text style={s.headerTitle}>Repair details</Text><View style={s.spacer} /></View>
     <Text style={s.step}>2 OF 3</Text><Text style={s.title}>Tell us about it</Text><Text style={s.subtitle}>A few details help us find the right repairer and give you a clearer estimate.</Text>
     <View style={s.issuePill}><View style={s.issueIcon}><Ionicons name="construct-outline" size={17} color={colors.blue} /></View><View style={s.issueCopy}><Text style={s.issueLabel}>SELECTED ISSUE</Text><Text style={s.issueName}>{issueName}</Text></View><Ionicons name="checkmark-circle" size={21} color={colors.blue} /></View>
-    <Text style={s.section}>Phone brand</Text><View style={s.chips}>{brands.map(item => <Pressable key={item} onPress={() => setBrand(item)} style={[s.chip, brand === item && s.chipActive]}><Text style={[s.chipText, brand === item && s.chipTextActive]}>{item}</Text></Pressable>)}</View>
+    <Text style={s.section}>Phone brand</Text><View style={s.chips}>{brandOptions.map(item => <Pressable key={item} onPress={() => setBrand(item)} style={[s.chip, brand === item && s.chipActive]}><Text style={[s.chipText, brand === item && s.chipTextActive]}>{item}</Text></Pressable>)}</View>
     <Text style={s.section}>Model name</Text><TextInput value={model} onChangeText={setModel} placeholder="e.g. iPhone 14 Pro" placeholderTextColor={colors.muted} style={s.input} />
     <Text style={s.section}>What best describes the problem?</Text><View style={s.choiceGrid}>{choices.map(choice => <Pressable key={choice} onPress={() => setSelectedChoice(choice)} style={[s.choice, selectedChoice === choice && s.choiceActive]}><View style={[s.radio, selectedChoice === choice && s.radioActive]}>{selectedChoice === choice && <View style={s.radioDot} />}</View><Text style={[s.choiceText, selectedChoice === choice && s.choiceTextActive]}>{choice}</Text></Pressable>)}</View>
     <Text style={s.section}>Extra details <Text style={s.optional}>OPTIONAL</Text></Text><TextInput value={notes} onChangeText={setNotes} placeholder="Tell the repairer anything useful..." placeholderTextColor={colors.muted} style={[s.input, s.notes]} multiline textAlignVertical="top" />

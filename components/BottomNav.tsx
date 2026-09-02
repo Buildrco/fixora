@@ -43,7 +43,7 @@ export function BottomNav({ active, visibility }: { active: MainRoute; visibilit
 
   return <Animated.View style={[styles.shell, { paddingBottom: Math.max(insets.bottom, 10), opacity: visibility, transform: [{ translateY: visibility.interpolate({ inputRange: [0, 1], outputRange: [110, 0] }) }] }]}>
     <View style={styles.bar}>
-      {routes.map(route => <NavItem key={route.key} route={route} active={active === route.key} onPress={() => router.replace(route.path as never)} />)}
+      {routes.map(route => <View key={route.key}><NavItem route={route} active={active === route.key} onPress={() => router.replace(route.path as never)} /></View>)}
     </View>
   </Animated.View>;
 }

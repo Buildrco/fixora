@@ -5,6 +5,7 @@ import { colors, radius } from "../constants/theme";
 
 export function PostCard({name,handle,text,image,likes="42",comments="13"}:{name:string;handle:string;text:string;image:string;likes?:string;comments?:string}) {
  const [liked, setLiked] = useState(false);
+ const [reposted, setReposted] = useState(false);
  const likeScale = useRef(new Animated.Value(1)).current;
  const bubbleValues = useRef([0, 1, 2, 3].map(() => new Animated.Value(0))).current;
  const toggleLike = () => {
@@ -22,11 +23,11 @@ export function PostCard({name,handle,text,image,likes="42",comments="13"}:{name
    <View style={styles.actions}>
      <Pressable onPress={toggleLike} hitSlop={8} style={styles.action}><Animated.View style={{ transform: [{ scale: likeScale }] }}><Ionicons name={liked ? "heart" : "heart-outline"} size={21} color={liked ? colors.accent : colors.muted}/></Animated.View><Text style={liked && styles.activeText}>{Number(likes) + (liked ? 1 : 0)}</Text></Pressable>
      <Pressable style={styles.action}><Ionicons name="chatbubble-outline" size={20} color={colors.muted}/><Text>{comments}</Text></Pressable>
-     <Pressable style={styles.action}><Ionicons name="repeat-outline" size={21} color={colors.muted}/><Text>8</Text></Pressable>
+     <Pressable onPress={() => setReposted(value => !value)} hitSlop={8} style={styles.action}><Ionicons name="repeat-outline" size={21} color={reposted ? colors.green : colors.muted}/><Text style={reposted && styles.repostText}>{Number(8) + (reposted ? 1 : 0)}</Text></Pressable>
      <Pressable style={styles.action}><Ionicons name="share-outline" size={20} color={colors.muted}/></Pressable>
    </View>
  </View>
 }
 const styles=StyleSheet.create({
- card:{position:"relative",backgroundColor:"#fff",borderBottomWidth:1,borderBottomColor:colors.line,paddingVertical:18},head:{flexDirection:"row",alignItems:"center",gap:10},avatar:{width:40,height:40,borderRadius:20},nameRow:{flexDirection:"row",alignItems:"center"},name:{fontSize:15,fontWeight:"700",color:colors.ink},handle:{fontSize:12,color:colors.muted,marginTop:2},badge:{marginLeft:5,width:16,height:16,borderRadius:8,backgroundColor:colors.blue,alignItems:"center",justifyContent:"center"},badgeText:{color:"#fff",fontSize:9,fontWeight:"800"},text:{fontSize:15,lineHeight:22,color:colors.ink,marginTop:12,marginBottom:12},postImage:{width:"100%",height:215,borderRadius:radius.md},bubbles:{position:"absolute",left:0,bottom:36,width:150,height:110,zIndex:2},bubble:{position:"absolute",bottom:0,color:colors.accent,fontSize:17,fontWeight:"800"},actions:{flexDirection:"row",justifyContent:"space-between",paddingTop:12},action:{flexDirection:"row",alignItems:"center",gap:6},actionText:{fontSize:12,color:colors.muted},activeText:{color:colors.accent,fontWeight:"700"}
+ card:{position:"relative",backgroundColor:"#fff",borderBottomWidth:1,borderBottomColor:colors.line,paddingVertical:18},head:{flexDirection:"row",alignItems:"center",gap:10},avatar:{width:40,height:40,borderRadius:20},nameRow:{flexDirection:"row",alignItems:"center"},name:{fontSize:15,fontWeight:"700",color:colors.ink},handle:{fontSize:12,color:colors.muted,marginTop:2},badge:{marginLeft:5,width:16,height:16,borderRadius:8,backgroundColor:colors.blue,alignItems:"center",justifyContent:"center"},badgeText:{color:"#fff",fontSize:9,fontWeight:"800"},text:{fontSize:15,lineHeight:22,color:colors.ink,marginTop:12,marginBottom:12},postImage:{width:"100%",height:215,borderRadius:radius.md},bubbles:{position:"absolute",left:0,bottom:36,width:150,height:110,zIndex:2},bubble:{position:"absolute",bottom:0,color:colors.accent,fontSize:17,fontWeight:"800"},actions:{flexDirection:"row",justifyContent:"space-between",paddingTop:12},action:{flexDirection:"row",alignItems:"center",gap:6},actionText:{fontSize:12,color:colors.muted},activeText:{color:colors.accent,fontWeight:"700"},repostText:{color:colors.green,fontWeight:"700"}
 });

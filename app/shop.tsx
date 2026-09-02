@@ -45,7 +45,7 @@ const categories: Category[] = [
   ] }
 ];
 
-const heroPath = "M28 0 C12 0 0 12 0 28 L0 174 C0 195 13 208 35 208 L30 208 C48 208 60 204 68 195 C76 187 88 184 110 184 L152 184 C174 184 186 188 194 197 C202 205 213 208 231 208 L365 208 C387 208 400 195 400 174 L400 28 C400 12 388 0 372 0 Z";
+const heroPath = "M28 0 C12 0 0 12 0 28 L0 174 C0 195 13 208 23 208 L30 208 C48 208 60 204 68 195 C76 187 88 184 110 184 L152 184 C174 184 186 188 194 197 C202 205 213 208 231 208 L365 208 C387 208 400 195 400 174 L400 28 C400 12 388 0 372 0 Z";
 const heroAccent = "M0 190 C25 171 57 164 91 170 C122 176 150 191 181 193 C222 196 252 171 292 167 C339 162 374 174 400 190 L400 220 L0 220 Z";
 const filterPath = "M22 1 C10 1 1 10 1 22 C1 34 10 43 22 43 C31 43 37 38 42 32 C45 28 48 28 55 28 C58 28 59 31 61 34 C63 37 67 39 73 39 H124 C135 39 143 32 143 22 C143 12 135 5 124 5 H73 C67 5 63 7 61 10 C59 13 58 16 55 16 C48 16 45 16 42 12 C37 6 31 1 22 1 Z";
 const brandStep = 156;
@@ -193,7 +193,7 @@ export default function Shop() {
         <Animated.View style={[s.brandRow, { width: category.brands.length * brandStep, transform: [{ translateX: brandScroll.interpolate({ inputRange: [0, Math.max(maxBrandScroll, 1)], outputRange: [0, -maxBrandScroll], extrapolate: "clamp" }) }] }]}>
           {category.brands.map((brand, index) => {
             const range = [(index - 1) * brandStep, index * brandStep, (index + 1) * brandStep];
-            const progress = brandScroll.interpolate({ inputRange: range, outputRange: [0, 1, 0], extrapolate: "clamp" });
+            const progress = brandProgress.interpolate({ inputRange: range, outputRange: [0, 1, 0], extrapolate: "clamp" });
             return <View key={brand.label} style={s.brandSlot}><Pressable onPress={() => selectBrand(brand, index)} style={({ pressed }) => [s.brandCard, pressed && s.pressed]}>
               <BrandFilterShape brand={brand} progress={progress} />
             </Pressable></View>;
@@ -222,8 +222,8 @@ const s = StyleSheet.create({
   bannerKicker: { color: "rgba(255,255,255,.78)", fontSize: 10, fontWeight: "800", letterSpacing: 1.1 },
   bannerTitle: { color: "#fff", fontSize: 24, fontWeight: "800", marginTop: 5, maxWidth: 190 },
   bannerSubtitle: { color: "rgba(255,255,255,.86)", fontSize: 13, marginTop: 3 },
-  bannerButtonWrap: { position: "absolute", left: 76, bottom: 5, zIndex: 3 },
-  bannerButton: { width: 104, height: 34, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 7, backgroundColor: "rgba(0,0,0,.92)", borderRadius: 17 },
+  bannerButtonWrap: { position: "absolute", left: 81, bottom: -7, zIndex: 3 },
+  bannerButton: { width: 100, height: 34, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 7, backgroundColor: "rgba(0,0,0,.92)", borderRadius: 17 },
   bannerButtonText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   dots: { alignItems: "center", justifyContent: "center", height: 22 },
   dotTrack: { flexDirection: "row", alignItems: "center", gap: 5, position: "relative" },

@@ -16,32 +16,51 @@ const categories: Category[] = [
     { name: "iPhone 15 Pro", price: "GH₵14,500", image: "https://images.unsplash.com/photo-1591337676887-a217a6970a8a?auto=format&fit=crop&w=700&q=88", brand: "Apple" },
     { name: "Galaxy S24", price: "GH₵11,800", image: "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?auto=format&fit=crop&w=700&q=88", brand: "Samsung" },
     { name: "Pixel 9 Pro", price: "GH₵9,900", image: "https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&w=700&q=88", brand: "Google" },
-    { name: "iPhone 14", price: "GH₵10,800", image: "https://images.unsplash.com/photo-1591337676887-a217a6970a8a?auto=format&fit=crop&w=700&q=88", brand: "Apple" }
+    { name: "iPhone 14", price: "GH₵10,800", image: "https://images.unsplash.com/photo-1591337676887-a217a6970a8a?auto=format&fit=crop&w=700&q=88", brand: "Apple" },
+    { name: "iPhone 16 Pro", price: "GH₵18,900", image: "https://images.unsplash.com/photo-1696446701796-da61225697cc?auto=format&fit=crop&w=700&q=88", brand: "Apple" },
+    { name: "Galaxy Z Flip6", price: "GH₵15,700", image: "https://images.unsplash.com/photo-1610945264803-c22b62d2a7b3?auto=format&fit=crop&w=700&q=88", brand: "Samsung" },
+    { name: "Pixel 8a", price: "GH₵7,400", image: "https://images.unsplash.com/photo-1598327105666-5b89351aff97?auto=format&fit=crop&w=700&q=88", brand: "Google" },
+    { name: "OnePlus 12", price: "GH₵8,600", image: "https://images.unsplash.com/photo-1598965402089-897ce52e8355?auto=format&fit=crop&w=700&q=88", brand: "Other Brands" }
   ] },
   { id: "tablets", title: "Tablets", kicker: "WORK. CREATE. PLAY.", copy: "Big screens, easy to carry.", tone: "#D5A32C", brands: [{ label: "iPad", mark: "apple", tone: "#2D6BDA" }, { label: "Galaxy Tab", mark: "SAMSUNG", tone: "#174B9B" }, { label: "Android", mark: "A", tone: "#2B9A71" }], products: [
     { name: "iPad Pro", price: "GH₵16,500", image: "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=700&q=88", brand: "iPad" },
     { name: "Galaxy Tab S9", price: "GH₵12,400", image: "https://images.unsplash.com/photo-1561154464-82e9adf32764?auto=format&fit=crop&w=700&q=88", brand: "Galaxy Tab" },
-    { name: "Android Tablet", price: "GH₵4,800", image: "https://images.unsplash.com/photo-1585790050230-5dd28404ccb9?auto=format&fit=crop&w=700&q=88", brand: "Android" }
+    { name: "Android Tablet", price: "GH₵4,800", image: "https://images.unsplash.com/photo-1585790050230-5dd28404ccb9?auto=format&fit=crop&w=700&q=88", brand: "Android" },
+    { name: "iPad Air", price: "GH₵11,200", image: "https://images.unsplash.com/photo-1561154464-82e9adf32764?auto=format&fit=crop&w=700&q=88", brand: "iPad" },
+    { name: "Galaxy Tab A9", price: "GH₵5,600", image: "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=700&q=88", brand: "Galaxy Tab" },
+    { name: "Lenovo Tab P12", price: "GH₵6,900", image: "https://images.unsplash.com/photo-1585790050230-5dd28404ccb9?auto=format&fit=crop&w=700&q=88", brand: "Android" }
   ] },
   { id: "computers", title: "Laptops & Computers", kicker: "POWER YOUR WORK", copy: "Ready for every big idea.", tone: "#315B58", brands: [{ label: "MacBook", mark: "apple", tone: "#2D6BDA" }, { label: "Windows", mark: "W", tone: "#2088D8" }, { label: "Gaming", mark: "G", tone: "#7B4CC5" }], products: [
     { name: "MacBook Pro", price: "GH₵28,500", image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=700&q=88", brand: "MacBook" },
     { name: "Windows Laptop", price: "GH₵12,800", image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=700&q=88", brand: "Windows" },
-    { name: "Gaming Laptop", price: "GH₵19,900", image: "https://images.unsplash.com/photo-1593642702821-c8da6771f0c6?auto=format&fit=crop&w=700&q=88", brand: "Gaming" }
+    { name: "Gaming Laptop", price: "GH₵19,900", image: "https://images.unsplash.com/photo-1593642702821-c8da6771f0c6?auto=format&fit=crop&w=700&q=88", brand: "Gaming" },
+    { name: "MacBook Air", price: "GH₵21,800", image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=700&q=88", brand: "MacBook" },
+    { name: "Dell XPS 15", price: "GH₵16,400", image: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=700&q=88", brand: "Windows" },
+    { name: "ASUS ROG Zephyrus", price: "GH₵24,500", image: "https://images.unsplash.com/photo-1593642702821-c8da6771f0c6?auto=format&fit=crop&w=700&q=88", brand: "Gaming" }
   ] },
   { id: "parts", title: "Repair Parts", kicker: "BUILT FOR REPAIRERS", copy: "Quality parts for every fix.", tone: "#4A477F", brands: [{ label: "Displays", mark: "▣", tone: "#2D6BDA" }, { label: "Batteries", mark: "▰", tone: "#2B9A71" }, { label: "Boards", mark: "▦", tone: "#D5A32C" }], products: [
     { name: "Phone Displays", price: "GH₵650", image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=700&q=88", brand: "Displays" },
     { name: "Phone Batteries", price: "GH₵280", image: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=700&q=88", brand: "Batteries" },
-    { name: "Logic Boards", price: "GH₵1,200", image: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=700&q=88", brand: "Boards" }
+    { name: "Logic Boards", price: "GH₵1,200", image: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=700&q=88", brand: "Boards" },
+    { name: "OLED Display", price: "GH₵890", image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=700&q=88", brand: "Displays" },
+    { name: "iPhone 14 Battery", price: "GH₵360", image: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=700&q=88", brand: "Batteries" },
+    { name: "iPhone 15 Logic Board", price: "GH₵1,650", image: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=700&q=88", brand: "Boards" }
   ] },
   { id: "tools", title: "Tools & Equipment", kicker: "WORK WITH CONFIDENCE", copy: "The tools behind better repairs.", tone: "#B45639", brands: [{ label: "Screwdrivers", mark: "✣", tone: "#2D6BDA" }, { label: "Soldering", mark: "⌁", tone: "#B45639" }, { label: "Testing", mark: "＋", tone: "#2B9A71" }], products: [
     { name: "Repair Tool Kit", price: "GH₵480", image: "https://images.unsplash.com/photo-1530124566582-a618bc2615dc?auto=format&fit=crop&w=700&q=88", brand: "Screwdrivers" },
     { name: "Soldering Station", price: "GH₵1,850", image: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=700&q=88", brand: "Soldering" },
-    { name: "Digital Multimeter", price: "GH₵380", image: "https://images.unsplash.com/photo-1530124566582-a618bc2615dc?auto=format&fit=crop&w=700&q=88", brand: "Testing" }
+    { name: "Digital Multimeter", price: "GH₵380", image: "https://images.unsplash.com/photo-1530124566582-a618bc2615dc?auto=format&fit=crop&w=700&q=88", brand: "Testing" },
+    { name: "Precision Driver Set", price: "GH₵260", image: "https://images.unsplash.com/photo-1530124566582-a618bc2615dc?auto=format&fit=crop&w=700&q=88", brand: "Screwdrivers" },
+    { name: "Hot Air Rework Station", price: "GH₵2,400", image: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=700&q=88", brand: "Soldering" },
+    { name: "USB-C Tester", price: "GH₵420", image: "https://images.unsplash.com/photo-1530124566582-a618bc2615dc?auto=format&fit=crop&w=700&q=88", brand: "Testing" }
   ] },
   { id: "accessories", title: "Accessories", kicker: "COMPLETE YOUR SETUP", copy: "Smart add-ons for every device.", tone: "#416A91", brands: [{ label: "Audio", mark: "♫", tone: "#2D6BDA" }, { label: "Chargers", mark: "ϟ", tone: "#D5A32C" }, { label: "Cases", mark: "▢", tone: "#4A477F" }], products: [
     { name: "Wireless Headphones", price: "GH₵950", image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=700&q=88", brand: "Audio" },
     { name: "Power Bank", price: "GH₵320", image: "https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?auto=format&fit=crop&w=700&q=88", brand: "Chargers" },
-    { name: "Phone Cases", price: "GH₵180", image: "https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?auto=format&fit=crop&w=700&q=88", brand: "Cases" }
+    { name: "Phone Cases", price: "GH₵180", image: "https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?auto=format&fit=crop&w=700&q=88", brand: "Cases" },
+    { name: "Smartwatch Series 9", price: "GH₵2,100", image: "https://images.unsplash.com/photo-1544117519-31a4b719223d?auto=format&fit=crop&w=700&q=88", brand: "Audio" },
+    { name: "USB-C Fast Charger", price: "GH₵240", image: "https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=700&q=88", brand: "Chargers" },
+    { name: "MagSafe Case", price: "GH₵280", image: "https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?auto=format&fit=crop&w=700&q=88", brand: "Cases" }
   ] }
 ];
 

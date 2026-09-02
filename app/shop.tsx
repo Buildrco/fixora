@@ -214,7 +214,7 @@ export default function Shop() {
 
   return <SafeAreaProvider><SafeAreaView edges={["top"]} style={s.safe}>
     <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-      <View style={s.head}><IconButton name="chevron-back" onPress={() => router.back()} /><Text style={s.title}>Shop</Text><IconButton name="bag-handle-outline" /></View>
+      <View style={s.head}><IconButton name="chevron-back" onPress={() => router.back()} /><Text style={s.title}>Shop</Text><IconButton name="bag-handle-outline" onPress={() => router.push("/cart" as never)} /></View>
       <View style={s.search}><Ionicons name="search-outline" size={19} color={colors.muted} /><Text style={s.searchText}>Search products</Text></View>
 
       <Animated.ScrollView horizontal decelerationRate="fast" snapToInterval={pageSize} snapToAlignment="start" showsHorizontalScrollIndicator={false} contentContainerStyle={s.bannerList} onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: bannerScroll } } }], { useNativeDriver: true })} scrollEventThrottle={16} onMomentumScrollEnd={onBannerEnd}>

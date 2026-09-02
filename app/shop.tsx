@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { Animated, ScrollView, Text, View, StyleSheet, Image, Pressable, useWindowDimensions } from "react-native";
+import Svg, { Circle, ClipPath, Defs, G, Path } from "react-native-svg";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { colors, radius } from "../constants/theme";
 import { IconButton } from "../components/IconButton";
@@ -44,6 +45,31 @@ const categories: Category[] = [
   ] }
 ];
 
+const heroPath = "M28 0 C12 0 0 12 0 28 L0 174 C0 195 13 208 35 208 L101 208 C113 208 120 202 124 191 C129 177 140 168 155 168 L198 168 C213 168 224 177 229 191 C233 202 240 208 252 208 L365 208 C387 208 400 195 400 174 L400 28 C400 12 388 0 372 0 Z";
+const heroAccent = "M0 187 C24 151 83 153 128 179 C158 196 184 199 216 184 C270 159 348 155 400 185 L400 220 L0 220 Z";
+const filterPath = "M22 1 C10 1 1 10 1 22 C1 34 10 43 22 43 C31 43 37 38 42 32 C45 28 48 28 55 28 C58 28 59 31 61 34 C63 37 67 39 73 39 H124 C135 39 143 32 143 22 C143 12 135 5 124 5 H73 C67 5 63 7 61 10 C59 13 58 16 55 16 C48 16 45 16 42 12 C37 6 31 1 22 1 Z";
+
+function HeroShape({ tone, id, width }: { tone: string; id: string; width: number }) {
+  return <Svg width={width} height={220} viewBox="0 0 400 220" preserveAspectRatio="none" style={s.heroSvg}>
+    <Defs><ClipPath id={id}><Path d={heroPath} /></ClipPath></Defs>
+    <Path d={heroPath} fill={tone} />
+    <G clipPath={"url(#" + id + ")"}>
+      <Path d={heroAccent} fill="rgba(255,255,255,0.14)" />
+    </G>
+  </Svg>;
+}
+
+function BrandFilterShape({ brand, active }: { brand: Brand; active: boolean }) {
+  return <View style={s.brandShape}>
+    <Svg width={146} height={44} viewBox="0 0 146 44">
+      <Path d={filterPath} fill={active ? "#EAF1FF" : "#fff"} stroke={active ? "#BFD1F8" : "#D8D8D8"} strokeWidth={1.2} />
+      <Circle cx={22} cy={22} r={19.5} fill={brand.tone} />
+    </Svg>
+    <View style={s.brandMarkWrap}><BrandMark brand={brand} /></View>
+    <View style={s.brandTextWrap}><Text style={[s.brandText, active && s.brandTextActive]}>{brand.label}</Text></View>
+  </View>;
+}
+
 function BrandMark({ brand }: { brand: Brand }) {
   if (brand.mark === "apple") return <Ionicons name="logo-apple" size={22} color="#fff" />;
   if (brand.mark === "SAMSUNG") return <Text style={s.samsungMark}>SAMSUNG</Text>;
@@ -77,21 +103,22 @@ export default function Shop() {
         {categories.map((item, index) => {
           const range = [(index - 1) * pageSize, index * pageSize, (index + 1) * pageSize];
           const motion = { opacity: bannerScroll.interpolate({ inputRange: range, outputRange: [0.72, 1, 0.72], extrapolate: "clamp" }), transform: [{ translateY: bannerScroll.interpolate({ inputRange: range, outputRange: [8, 0, 8], extrapolate: "clamp" }) }, { scale: bannerScroll.interpolate({ inputRange: range, outputRange: [0.97, 1, 0.97], extrapolate: "clamp" }) }] };
-          return <Animated.View key={item.id} style={[s.banner, { width: bannerWidth, backgroundColor: item.tone }, motion]}>
+          return <Animated.View key={item.id} style={[s.banner, { width: bannerWidth }, motion]}>
+            <HeroShape tone={item.tone} id={"hero-" + item.id} width={bannerWidth} />
             <View style={s.bannerCopy}><Text style={s.bannerKicker}>{item.kicker}</Text><Text style={s.bannerTitle}>{item.title}</Text><Text style={s.bannerSubtitle}>{item.copy}</Text></View>
-            <View style={s.bannerCurve}><View style={s.bannerButton}><Text style={s.bannerButtonText}>Shop now</Text><Ionicons name="arrow-forward" size={16} color="#fff" /></View></View>
+            <View style={s.bannerButtonWrap}><View style={s.bannerButton}><Text style={s.bannerButtonText}>Shop now</Text><Ionicons name="arrow-forward" size={16} color="#fff" /></View></View>
           </Animated.View>;
         })}
       </Animated.ScrollView>
       <View style={s.dots}>{categories.map((item, index) => <View key={item.id} style={[s.dot, index === activeCategory && s.dotActive]} />)}</View>
 
-      <Animated.ScrollView key={category.id} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.brandList} onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: brandScroll } } }], { useNativeDriver: true })} scrollEventThrottle={16}>
+      <Animated.ScrollView key={category.id} horizontal decelerationRate="normal" showsHorizontalScrollIndicator={false} contentContainerStyle={s.brandList} onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: brandScroll } } }], { useNativeDriver: true })} scrollEventThrottle={16}>
         {category.brands.map((brand, index) => {
           const range = [(index - 1) * 140, index * 140, (index + 1) * 140];
           const motion = { opacity: brandScroll.interpolate({ inputRange: range, outputRange: [0.62, 1, 0.62], extrapolate: "clamp" }), transform: [{ translateY: brandScroll.interpolate({ inputRange: range, outputRange: [4, 0, 4], extrapolate: "clamp" }) }] };
           const active = selectedBrand === brand.label;
-          return <Animated.View key={brand.label} style={motion}><Pressable onPress={() => setSelectedBrand(active ? "" : brand.label)} style={({ pressed }) => [s.brandCard, pressed && s.pressed]}>
-            <View style={[s.brandLogo, { backgroundColor: brand.tone }, active && s.brandLogoActive]}><BrandMark brand={brand} /></View><View style={[s.brandPill, active && s.brandPillActive]}><Text style={[s.brandText, active && s.brandTextActive]}>{brand.label}</Text></View>
+          return <Animated.View key={brand.label} style={[s.brandSlot, motion]}><Pressable onPress={() => setSelectedBrand(active ? "" : brand.label)} style={({ pressed }) => [s.brandCard, pressed && s.pressed]}>
+            <BrandFilterShape brand={brand} active={active} />
           </Pressable></Animated.View>;
         })}
       </Animated.ScrollView>
@@ -104,5 +131,41 @@ export default function Shop() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#fff" }, content: { padding: 18, paddingBottom: 40 }, head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, title: { fontSize: 20, fontWeight: "800", color: colors.ink }, search: { height: 48, borderRadius: 16, backgroundColor: colors.soft, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 14, marginTop: 16 }, searchText: { color: colors.muted, fontSize: 13 }, bannerList: { gap: 12, paddingTop: 18 }, banner: { height: 220, borderRadius: 26, overflow: "hidden", position: "relative" }, bannerCurve: { position: "absolute", left: 0, right: 0, bottom: 0, height: 67, borderTopLeftRadius: 54, borderTopRightRadius: 54, backgroundColor: "rgba(255,255,255,.15)", justifyContent: "center", paddingLeft: 20 }, bannerCopy: { position: "absolute", left: 20, right: 20, bottom: 72 }, bannerKicker: { color: "rgba(255,255,255,.78)", fontSize: 10, fontWeight: "800", letterSpacing: 1.1 }, bannerTitle: { color: "#fff", fontSize: 24, fontWeight: "800", marginTop: 5, maxWidth: 190 }, bannerSubtitle: { color: "rgba(255,255,255,.86)", fontSize: 13, marginTop: 3 }, bannerButton: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(0,0,0,.72)", borderRadius: 15, paddingHorizontal: 13, paddingVertical: 8 }, bannerButtonText: { color: "#fff", fontSize: 12, fontWeight: "700" }, dots: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 5, height: 22 }, dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.line }, dotActive: { width: 17, backgroundColor: colors.ink }, brandList: { paddingVertical: 10 }, brandCard: { flexDirection: "row", alignItems: "center", height: 44, marginRight: 10 }, brandLogo: { width: 42, height: 42, borderRadius: 22, alignItems: "center", justifyContent: "center", zIndex: 1 }, brandLogoActive: { shadowColor: "#183A7A", shadowOpacity: .22, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 3 }, brandPill: { height: 36, marginLeft: -8, paddingLeft: 16, paddingRight: 14, borderRadius: 20, justifyContent: "center", backgroundColor: "#fff", borderWidth: 1, borderColor: colors.line }, brandPillActive: { backgroundColor: "#EAF1FF", borderColor: "#BFD1F8" }, brandMark: { color: "#fff", fontSize: 17, fontWeight: "800" }, samsungMark: { color: "#fff", fontSize: 7, fontWeight: "900", letterSpacing: .2 }, brandText: { fontSize: 13, fontWeight: "700", color: colors.ink }, brandTextActive: { color: "#1C4EA8" }, grid: { flexDirection: "row", flexWrap: "wrap", gap: 14 }, product: { width: "47%", marginBottom: 10 }, pressedProduct: { opacity: .88, transform: [{ scale: .985 }] }, image: { width: "100%", height: 170, borderRadius: radius.lg }, name: { fontSize: 14, fontWeight: "700", marginTop: 9 }, price: { fontSize: 14, fontWeight: "800", marginTop: 3 }, seller: { fontSize: 11, color: colors.green, marginTop: 4, fontWeight: "600" }, pressed: { opacity: .8 }
+  safe: { flex: 1, backgroundColor: "#fff" },
+  content: { padding: 18, paddingBottom: 40 },
+  head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  title: { fontSize: 20, fontWeight: "800", color: colors.ink },
+  search: { height: 48, borderRadius: 16, backgroundColor: colors.soft, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 14, marginTop: 16 },
+  searchText: { color: colors.muted, fontSize: 13 },
+  bannerList: { gap: 12, paddingTop: 18 },
+  banner: { height: 220, position: "relative", overflow: "visible" },
+  heroSvg: { position: "absolute", left: 0, top: 0 },
+  bannerCopy: { position: "absolute", left: 20, right: 20, bottom: 72, zIndex: 2 },
+  bannerKicker: { color: "rgba(255,255,255,.78)", fontSize: 10, fontWeight: "800", letterSpacing: 1.1 },
+  bannerTitle: { color: "#fff", fontSize: 24, fontWeight: "800", marginTop: 5, maxWidth: 190 },
+  bannerSubtitle: { color: "rgba(255,255,255,.86)", fontSize: 13, marginTop: 3 },
+  bannerButtonWrap: { position: "absolute", left: 20, bottom: 3, zIndex: 3 },
+  bannerButton: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(0,0,0,.72)", borderRadius: 15, paddingHorizontal: 13, paddingVertical: 8 },
+  bannerButtonText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  dots: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 5, height: 22 },
+  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.line },
+  dotActive: { width: 17, backgroundColor: colors.ink },
+  brandList: { paddingVertical: 10 },
+  brandSlot: { width: 146, height: 44, marginRight: 10 },
+  brandCard: { width: 146, height: 44 },
+  brandShape: { width: 146, height: 44, position: "relative" },
+  brandMarkWrap: { position: "absolute", left: 0, top: 0, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  brandTextWrap: { position: "absolute", left: 59, right: 5, top: 0, height: 44, alignItems: "center", justifyContent: "center" },
+  brandMark: { color: "#fff", fontSize: 17, fontWeight: "800" },
+  samsungMark: { color: "#fff", fontSize: 6, fontWeight: "900", letterSpacing: .2 },
+  brandText: { fontSize: 13, fontWeight: "700", color: colors.ink },
+  brandTextActive: { color: "#1C4EA8" },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 14 },
+  product: { width: "47%", marginBottom: 10 },
+  pressedProduct: { opacity: .88, transform: [{ scale: .985 }] },
+  image: { width: "100%", height: 170, borderRadius: radius.lg },
+  name: { fontSize: 14, fontWeight: "700", marginTop: 9 },
+  price: { fontSize: 14, fontWeight: "800", marginTop: 3 },
+  seller: { fontSize: 11, color: colors.green, marginTop: 4, fontWeight: "600" },
+  pressed: { opacity: .8 }
 });

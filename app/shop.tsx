@@ -90,18 +90,20 @@ export default function Shop() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const [activeCategory, setActiveCategory] = useState(0);
-  const [selectedBrand, setSelectedBrand] = useState(categories[0].brands[0].label);
   const [selectedBrandIndex, setSelectedBrandIndex] = useState(0);
   const bannerScroll = useRef(new Animated.Value(0)).current;
   const brandScroll = useRef(new Animated.Value(0)).current;
   const brandProgress = useRef(new Animated.Value(0)).current;
+  const productProgress = useRef(new Animated.Value(0)).current;
+  const productProgressValue = useRef(0);
   const brandOffset = useRef(0);
   const brandStartOffset = useRef(0);
+  const brandStartIndex = useRef(0);
+  const productStartProgress = useRef(0);
   const filterGestureSettled = useRef(false);
   const category = categories[activeCategory];
   const bannerWidth = Math.max(width - 36, 280);
   const pageSize = bannerWidth + 12;
-  const products = selectedBrand ? category.products.filter(product => product.brand === selectedBrand) : category.products;
   const maxBrandScroll = Math.max(0, (category.brands.length - 1) * brandStep);
   const brandViewportWidth = Math.max(width - 36, 280);
   const dotIndicatorX = bannerScroll.interpolate({
@@ -113,33 +115,39 @@ export default function Shop() {
   const onBannerEnd = (event: any) => {
     const next = Math.max(0, Math.min(categories.length - 1, Math.round(event.nativeEvent.contentOffset.x / pageSize)));
     setActiveCategory(next);
-    setSelectedBrand(categories[next].brands[0].label);
     setSelectedBrandIndex(0);
     brandScroll.stopAnimation();
     brandProgress.stopAnimation();
+    productProgress.stopAnimation();
     brandScroll.setValue(0);
     brandProgress.setValue(0);
+    productProgress.setValue(0);
+    productProgressValue.current = 0;
     brandOffset.current = 0;
   };
 
   const animateBrandTo = useCallback((index: number, target: number) => {
     setSelectedBrandIndex(index);
-    setSelectedBrand(category.brands[index].label);
     brandOffset.current = target;
+    productProgressValue.current = index;
     Animated.parallel([
       Animated.spring(brandProgress, { toValue: index, useNativeDriver: true, tension: 54, friction: 12, overshootClamping: true }),
       Animated.spring(brandScroll, { toValue: target, useNativeDriver: true, tension: 54, friction: 12, overshootClamping: true }),
+      Animated.spring(productProgress, { toValue: index, useNativeDriver: true, tension: 54, friction: 12, overshootClamping: true }),
     ]).start();
-  }, [brandProgress, brandScroll, category]);
+  }, [brandProgress, brandScroll, category, productProgress]);
 
-  const selectBrand = (brand: Brand, index: number) => {
+  const visibleBrandOffset = useCallback((index: number, currentOffset = brandOffset.current) => {
     const cardStart = index * brandStep;
     const cardEnd = cardStart + 146;
-    let target = brandOffset.current;
+    let target = currentOffset;
     if (cardStart < target) target = cardStart;
     if (cardEnd > target + brandViewportWidth) target = cardEnd - brandViewportWidth;
-    target = Math.max(0, Math.min(maxBrandScroll, target));
-    animateBrandTo(index, target);
+    return Math.max(0, Math.min(maxBrandScroll, target));
+  }, [brandViewportWidth, maxBrandScroll]);
+
+  const selectBrand = (_brand: Brand, index: number) => {
+    animateBrandTo(index, visibleBrandOffset(index));
   };
 
   const filterPanResponder = useMemo(() => PanResponder.create({
@@ -148,28 +156,37 @@ export default function Shop() {
       filterGestureSettled.current = false;
       brandScroll.stopAnimation();
       brandProgress.stopAnimation();
+      productProgress.stopAnimation();
       brandStartOffset.current = brandOffset.current;
+      brandStartIndex.current = selectedBrandIndex;
+      productStartProgress.current = productProgressValue.current;
     },
     onPanResponderMove: (_, gesture) => {
       const next = Math.max(0, Math.min(maxBrandScroll, brandStartOffset.current - gesture.dx));
+      const nextBrandProgress = Math.max(0, Math.min(category.brands.length - 1, brandStartIndex.current - gesture.dx / brandStep));
+      const nextProductProgress = Math.max(0, Math.min(category.brands.length - 1, productStartProgress.current - gesture.dx / brandViewportWidth));
       brandOffset.current = next;
       brandScroll.setValue(next);
-      brandProgress.setValue(Math.max(0, Math.min(category.brands.length - 1, next / brandStep)));
+      brandProgress.setValue(nextBrandProgress);
+      productProgressValue.current = nextProductProgress;
+      productProgress.setValue(nextProductProgress);
     },
-    onPanResponderRelease: () => {
+    onPanResponderRelease: (_, gesture) => {
       if (filterGestureSettled.current) return;
       filterGestureSettled.current = true;
-      const nextIndex = Math.max(0, Math.min(category.brands.length - 1, Math.round(brandOffset.current / brandStep)));
-      animateBrandTo(nextIndex, nextIndex * brandStep);
+      const moved = Math.abs(gesture.dx) > 36 || Math.abs(gesture.vx) > 0.2;
+      const direction = gesture.dx < 0 ? 1 : -1;
+      const nextIndex = Math.max(0, Math.min(category.brands.length - 1, brandStartIndex.current + (moved ? direction : 0)));
+      animateBrandTo(nextIndex, visibleBrandOffset(nextIndex));
     },
     onPanResponderTerminate: () => {
       if (filterGestureSettled.current) return;
       filterGestureSettled.current = true;
-      const nextIndex = Math.max(0, Math.min(category.brands.length - 1, Math.round(brandOffset.current / brandStep)));
-      animateBrandTo(nextIndex, nextIndex * brandStep);
+      const nextIndex = Math.max(0, Math.min(category.brands.length - 1, Math.round(productProgressValue.current)));
+      animateBrandTo(nextIndex, visibleBrandOffset(nextIndex));
     },
     onPanResponderTerminationRequest: () => false,
-  }), [animateBrandTo, brandProgress, brandScroll, category, maxBrandScroll]);
+  }), [animateBrandTo, brandProgress, brandScroll, brandViewportWidth, category, maxBrandScroll, productProgress, selectedBrandIndex, visibleBrandOffset]);
 
   return <SafeAreaProvider><SafeAreaView edges={["top"]} style={s.safe}>
     <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
@@ -201,9 +218,13 @@ export default function Shop() {
         </Animated.View>
       </View>
 
-      <View style={s.grid}>{products.map(product => <Pressable key={product.name} onPress={() => router.push(`/product/${product.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}` as any)} style={({ pressed }) => [s.product, pressed && s.pressedProduct]}>
-        <Image source={{ uri: product.image }} style={s.image} resizeMode="cover" /><Text style={s.name}>{product.name}</Text><Text style={s.price}>{product.price}</Text><Text style={s.seller}>✓ Verified seller</Text>
-      </Pressable>)}</View>
+      <View style={s.productViewport} {...filterPanResponder.panHandlers}>
+        <Animated.View style={[s.productTrack, { width: brandViewportWidth * category.brands.length, transform: [{ translateX: productProgress.interpolate({ inputRange: category.brands.map((_, index) => index), outputRange: category.brands.map((_, index) => -index * brandViewportWidth), extrapolate: "clamp" }) }] }]}>
+          {category.brands.map(brand => <View key={brand.label} style={[s.productPage, { width: brandViewportWidth }]}><View style={s.grid}>{category.products.filter(product => product.brand === brand.label).map(product => <Pressable key={product.name} onPress={() => router.push(`/product/${product.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}` as any)} style={({ pressed }) => [s.product, pressed && s.pressedProduct]}>
+            <Image source={{ uri: product.image }} style={s.image} resizeMode="cover" /><Text style={s.name}>{product.name}</Text><Text style={s.price}>{product.price}</Text><Text style={s.seller}>✓ Verified seller</Text>
+          </Pressable>)}</View></View>)}
+        </Animated.View>
+      </View>
     </ScrollView>
   </SafeAreaView></SafeAreaProvider>;
 }
@@ -230,6 +251,9 @@ const s = StyleSheet.create({
   dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.line },
   dotActiveIndicator: { position: "absolute", left: -6, top: 0, width: 17, height: 5, borderRadius: 3, backgroundColor: colors.ink },
   brandViewport: { height: 78, overflow: "hidden", position: "relative", justifyContent: "center" },
+  productViewport: { overflow: "hidden" },
+  productTrack: { flexDirection: "row" },
+  productPage: { flexShrink: 0 },
   brandRow: { flexDirection: "row", alignItems: "center", position: "absolute", left: 0, top: 17 },
   brandSlot: { width: 146, height: 44, marginRight: 10 },
   brandCard: { width: 146, height: 44 },

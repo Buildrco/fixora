@@ -20,11 +20,11 @@ const issueChoices: Record<string, string[]> = {
 
 export default function RepairOptions() {
   const router = useRouter();
-  const { issue } = useLocalSearchParams<{ issue?: string }>();
+  const { issue, brand: queryBrand, model: queryModel, category } = useLocalSearchParams<{ issue?: string; brand?: string; model?: string; category?: string }>();
   const issueName = String(issue || "General repair");
-  const [brand, setBrand] = React.useState("Apple");
+  const [brand, setBrand] = React.useState(String(queryBrand || "Apple"));
   const [selectedChoice, setSelectedChoice] = React.useState("");
-  const [model, setModel] = React.useState("");
+  const [model, setModel] = React.useState(String(queryModel || ""));
   const [notes, setNotes] = React.useState("");
   const choices = issueChoices[issueName] || ["Needs diagnosis", "Not working", "Intermittent issue", "Physical damage"];
   return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
@@ -35,7 +35,7 @@ export default function RepairOptions() {
     <Text style={s.section}>Model name</Text><TextInput value={model} onChangeText={setModel} placeholder="e.g. iPhone 14 Pro" placeholderTextColor={colors.muted} style={s.input} />
     <Text style={s.section}>What best describes the problem?</Text><View style={s.choiceGrid}>{choices.map(choice => <Pressable key={choice} onPress={() => setSelectedChoice(choice)} style={[s.choice, selectedChoice === choice && s.choiceActive]}><View style={[s.radio, selectedChoice === choice && s.radioActive]}>{selectedChoice === choice && <View style={s.radioDot} />}</View><Text style={[s.choiceText, selectedChoice === choice && s.choiceTextActive]}>{choice}</Text></Pressable>)}</View>
     <Text style={s.section}>Extra details <Text style={s.optional}>OPTIONAL</Text></Text><TextInput value={notes} onChangeText={setNotes} placeholder="Tell the repairer anything useful..." placeholderTextColor={colors.muted} style={[s.input, s.notes]} multiline textAlignVertical="top" />
-    <Pressable onPress={() => router.push(("/repair/device?issue=" + encodeURIComponent(issueName) + "&brand=" + encodeURIComponent(brand) + "&model=" + encodeURIComponent(model || "Not specified")) as never)} style={({ pressed }) => [s.cta, pressed && s.pressed]}><Text style={s.ctaText}>Continue to device</Text><Ionicons name="arrow-forward" size={18} color="#fff" /></Pressable>
+    <Pressable onPress={() => router.push(("/repair/device?issue=" + encodeURIComponent(issueName) + "&category=" + encodeURIComponent(String(category || "Phone")) + "&brand=" + encodeURIComponent(brand) + "&model=" + encodeURIComponent(model || "Not specified")) as never)} style={({ pressed }) => [s.cta, pressed && s.pressed]}><Text style={s.ctaText}>Continue to device</Text><Ionicons name="arrow-forward" size={18} color="#fff" /></Pressable>
   </ScrollView></SafeAreaView>;
 }
 

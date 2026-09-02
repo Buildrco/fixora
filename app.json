@@ -32,7 +32,9 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/27ca9745-5c45-42f1-83a3-1530bb8c7eba"
+      "url": "https://u.expo.dev/27ca9745-5c45-42f1-83a3-1530bb8c7eba",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 5000
     }
   }
 }

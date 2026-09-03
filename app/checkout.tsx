@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import * as Location from "expo-location";
 import { useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -36,6 +35,7 @@ export default function Checkout() {
   const getCurrentLocation = async () => {
     setLocating(true); setLocationMessage("");
     try {
+      const Location = await import("expo-location");
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== "granted") { setLocationMessage("Allow location access to use your exact position."); setLocating(false); return; }
       const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });

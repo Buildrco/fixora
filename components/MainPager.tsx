@@ -24,6 +24,7 @@ const repairSlides = [
 
 export function MainPager({ initial }: { initial: MainRoute }) {
   const { visibility, onScroll } = useBottomNavVisibility();
+  const [communityOverlayOpen, setCommunityOverlayOpen] = useState(false);
   const initialIndex = menuRoutes.indexOf(initial);
   const [pageWidth, setPageWidth] = useState(0);
   const pageProgress = useRef(new Animated.Value(initialIndex)).current;
@@ -39,17 +40,18 @@ export function MainPager({ initial }: { initial: MainRoute }) {
     }).start();
   }, [pageProgress]);
 
+  const gestureStart = useRef(initialIndex);
   const onSwipeMove = useCallback((gesture: { dx: number }) => {
     if (!pageWidth) return;
     const max = menuRoutes.length - 1;
-    const raw = pageIndex.current - gesture.dx / pageWidth;
+    const raw = gestureStart.current - gesture.dx / pageWidth;
     const bounded = raw < 0 ? raw * 0.2 : raw > max ? max + (raw - max) * 0.2 : raw;
     pageProgress.setValue(bounded);
   }, [pageProgress, pageWidth]);
 
   const onSwipeEnd = useCallback((gesture: { dx: number; vx: number }) => {
     if (!pageWidth) return;
-    const current = pageIndex.current;
+    const current = gestureStart.current;
     const distance = Math.abs(gesture.dx);
     const shouldAdvance = distance > pageWidth * 0.22 || Math.abs(gesture.vx) > 0.45;
     let target = current;
@@ -66,6 +68,7 @@ export function MainPager({ initial }: { initial: MainRoute }) {
   const swipeResponder = useRef(PanResponder.create({
     onPanResponderGrant: () => {
       gestureSettled.current = false;
+      gestureStart.current = pageIndex.current;
       pageProgress.stopAnimation();
     },
     onMoveShouldSetPanResponderCapture: (_, gesture) => Math.abs(gesture.dx) > Math.abs(gesture.dy) + 14 && Math.abs(gesture.dx) > 12,
@@ -89,16 +92,16 @@ export function MainPager({ initial }: { initial: MainRoute }) {
         <Animated.View style={[styles.track, { width: pageWidth ? pageWidth * menuRoutes.length : "400%", transform: [{ translateX: pageProgress.interpolate({ inputRange: [0, 1, 2, 3], outputRange: [0, -pageWidth, -pageWidth * 2, -pageWidth * 3] }) }] }]}>
           <View style={[styles.page, { width: pageWidth || 1 }]}><HomePage onScroll={onScroll} /></View>
           <View style={[styles.page, { width: pageWidth || 1 }]}><RepairPage onScroll={onScroll} /></View>
-          <View style={[styles.page, { width: pageWidth || 1 }]}><CommunityPage onScroll={onScroll} /></View>
+          <View style={[styles.page, { width: pageWidth || 1 }]}><CommunityPage onScroll={onScroll} onOverlayChange={setCommunityOverlayOpen} /></View>
           <View style={[styles.page, { width: pageWidth || 1 }]}><ProfilePage onScroll={onScroll} /></View>
         </Animated.View>
       </View>
-      <BottomNav active={initial} visibility={visibility} pageProgress={pageProgress} onSelect={index => settleTo(index)} swipePanHandlers={swipeResponder.panHandlers} />
+      {!communityOverlayOpen && <BottomNav active={initial} visibility={visibility} pageProgress={pageProgress} onSelect={index => settleTo(index)} swipePanHandlers={swipeResponder.panHandlers} />}
     </View>
   </SafeAreaView></SafeAreaProvider>;
 }
 
-type PageProps = { onScroll: (event: any) => void };
+type PageProps = { onScroll: (event: any) => void; onOverlayChange?: (open: boolean) => void };
 
 function HomePage({ onScroll }: PageProps) {
   const router = useRouter();
@@ -162,10 +165,11 @@ function MessagesPage({ onClose }: { onClose: () => void }) {
   </Animated.View>;
 }
 
-function CommunityPage({ onScroll }: PageProps) {
-  const [story, setStory] = useState<typeof storyItems[number] | null>(null);
+function CommunityPage({ onScroll, onOverlayChange }: PageProps) {
+  const [story, setStory = useState<typeof storyItems[number] | null>(null);
   const [profilePosts, setProfilePosts] = useState(getProfilePosts());
   useEffect(() => subscribeProfilePosts(() => setProfilePosts(getProfilePosts())), []);
+  useEffect(() => { onOverlayChange?.(Boolean(story || messagesOpen)); }, [story, messagesOpen, onOverlayChange]);
   const [messagesOpen, setMessagesOpen] = useState(false);
   const storyMotion = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -199,7 +203,7 @@ function ProfilePage({ onScroll }: PageProps) {
   const profileRoutes = ["/profile/orders", "/profile/learning", "/profile/saved", "/profile/payments", "/profile/help"];
   const items = ["Orders", "My learning", "Saved posts", "Payment methods", "Help & support"];
   const icons = ["bag-outline", "play-circle-outline", "bookmark-outline", "card-outline", "help-circle-outline"];
-  return <ScrollView contentContainerStyle={profileStyles.content} onScroll={onScroll} scrollEventThrottle={16}><View style={profileStyles.head}><Text style={profileStyles.title}>Profile</Text><IconButton name="settings-outline" onPress={() => router.push("/profile/settings" as never)} /></View><View style={profileStyles.profile}><Pressable onPress={() => router.push("/profile/me" as never)}><Image source={{ uri: "https://i.pravatar.cc/160?img=12" }} style={profileStyles.avatar} /></Pressable><View style={profileStyles.nameRow}><Text style={profileStyles.name}>Your Name</Text><View style={profileStyles.badge}><Text style={profileStyles.badgeText}>✓</Text></View></View><Text style={profileStyles.handle}>@yourhandle</Text><Text style={profileStyles.bio}>Phone enthusiast · Customer · Future repairer</Text><View style={profileStyles.stats}><Stat n="12" l="Posts" /><Stat n="48" l="Saved" /><Stat n="6" l="Orders" /></View></View><Pressable onPress={() => router.push("/profile/join" as never)} style={profileStyles.join}><View style={profileStyles.joinIcon}><Ionicons name="construct-outline" size={21} /></View><View style={{ flex: 1 }}><Text style={profileStyles.joinTitle}>Join as a repairer or vendor</Text><Text style={profileStyles.joinSub}>Get jobs, sell products and publish tutorials.</Text></View><Ionicons name="chevron-forward" size={19} color={colors.muted} /></Pressable>{items.map((item, index) => <Pressable key={item} onPress={() => router.push(profileRoutes[index] as never)} style={({ pressed }) => [profileStyles.item, pressed && { opacity: 0.76 }]}><View style={profileStyles.itemIcon}><Ionicons name={icons[index] as keyof typeof Ionicons.glyphMap} size={19} /></View><Text style={profileStyles.itemText}>{item}</Text><Ionicons name="chevron-forward" size={17} color={colors.muted} /></Pressable>)}</ScrollView>;
+  return <ScrollView contentContainerStyle={profileStyles.content} onScroll={onScroll} scrollEventThrottle={16}><View style={profileStyles.head}><Text style={profileStyles.title}>Profile</Text><IconButton name="settings-outline" onPress={() => router.push("/profile/settings" as never)} /></View><View style={profileStyles.profile}><Pressable onPress={() => router.push("/profile/me" as never)} style={{ position: "relative" }}><Image source={{ uri: "https://i.pravatar.cc/160?img=12" }} style={profileStyles.avatar} /><View style={{ position: "absolute", right: 0, bottom: 2, width: 25, height: 25, borderRadius: 13, backgroundColor: colors.blue, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: colors.card }}><Ionicons name="arrow-up-right" size={13} color="#fff" /></View></Pressable><View style={profileStyles.nameRow}><Text style={profileStyles.name}>Your Name</Text><View style={profileStyles.badge}><Text style={profileStyles.badgeText}>✓</Text></View></View><Text style={profileStyles.handle}>@yourhandle</Text><Text style={profileStyles.bio}>Phone enthusiast · Customer · Future repairer</Text><Pressable onPress={() => router.push("/profile/me" as never)} style={{ marginTop: 14, minHeight: 48, borderRadius: 16, backgroundColor: "rgba(45,127,249,.09)", borderWidth: 1, borderColor: "rgba(45,127,249,.25)", flexDirection: "row", alignItems: "center", paddingHorizontal: 13, gap: 10 }}><View style={{ width: 28, height: 28, borderRadius: 10, backgroundColor: colors.blue, alignItems: "center", justifyContent: "center" }}><Ionicons name="person-outline" size={15} color="#fff" /></View><View style={{ flex: 1 }}><Text style={{ color: colors.ink, fontSize: 12, fontWeight: "800" }}>View your profile</Text><Text style={{ color: colors.muted, fontSize: 10, marginTop: 2 }}>See your posts, shop, services and class</Text></View><Ionicons name="chevron-forward" size={16} color={colors.blue} /></Pressable><View style={profileStyles.stats}><Stat n="12" l="Posts" /><Stat n="48" l="Saved" /><Stat n="6" l="Orders" /></View></View><Pressable onPress={() => router.push("/profile/join" as never)} style={profileStyles.join}><View style={profileStyles.joinIcon}><Ionicons name="construct-outline" size={21} /></View><View style={{ flex: 1 }}><Text style={profileStyles.joinTitle}>Join as a repairer or vendor</Text><Text style={profileStyles.joinSub}>Get jobs, sell products and publish tutorials.</Text></View><Ionicons name="chevron-forward" size={19} color={colors.muted} /></Pressable>{items.map((item, index) => <Pressable key={item} onPress={() => router.push(profileRoutes[index] as never)} style={({ pressed }) => [profileStyles.item, pressed && { opacity: 0.76 }]}><View style={profileStyles.itemIcon}><Ionicons name={icons[index] as keyof typeof Ionicons.glyphMap} size={19} /></View><Text style={profileStyles.itemText}>{item}</Text><Ionicons name="chevron-forward" size={17} color={colors.muted} /></Pressable>)}</ScrollView>;
 }
 
 function Product({ image, name, price, onPress }: { image: string; name: string; price: string; onPress: () => void }) { return <Pressable onPress={onPress} style={({ pressed }) => [homeStyles.product, pressed && homeStyles.pressed]}><Image source={{ uri: image }} style={homeStyles.productImage} resizeMode="cover" /><Text style={homeStyles.productName}>{name}</Text><Text style={homeStyles.productPrice}>{price}</Text></Pressable>; }

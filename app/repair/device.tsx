@@ -12,13 +12,14 @@ export default function RepairDevice() {
   const initialDevice = [brand, model].filter(value => value && value !== "Not specified").join(" ") || "iPhone 13 Pro";
   const devices = [initialDevice, "iPhone 14 Pro", "Galaxy S24"].filter((value, index, all) => all.indexOf(value) === index);
   const [selectedDevice, setSelectedDevice] = useState(0);
+  const selectedDeviceName = devices[selectedDevice];
   return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
     <View style={s.header}><IconButton name="chevron-back" onPress={() => router.back()} /><Text style={s.title}>Your device</Text><View style={s.spacer} /></View>
     <Text style={s.step}>3 OF 3</Text><Text style={s.heading}>Confirm your device</Text><Text style={s.sub}>Make sure we match your request with the right specialist.</Text>
     <View style={s.summary}><View style={s.summaryIcon}><Ionicons name="construct-outline" size={18} color={colors.blue} /></View><View style={s.summaryCopy}><Text style={s.summaryLabel}>REPAIR REQUEST</Text><Text style={s.summaryValue}>{String(issue || "General repair")}</Text></View></View>
     <Text style={s.section}>Choose a device</Text>
     {devices.map((name, index) => <Pressable key={name} onPress={() => setSelectedDevice(index)} style={[s.item, selectedDevice === index && s.selected]}><View style={s.deviceIcon}><Ionicons name={deviceIcon as keyof typeof Ionicons.glyphMap} size={22} color={selectedDevice === index ? colors.blue : colors.ink} /></View><View style={s.copy}><Text style={s.name}>{name}</Text><Text style={s.meta}>{selectedDevice === index ? "Selected device" : "Tap to select"}</Text></View><View style={[s.radio, selectedDevice === index && s.radioActive]}>{selectedDevice === index && <View style={s.radioDot} />}</View></Pressable>)}
-    <Pressable onPress={() => router.push("/repair/repairers" as any)} style={({ pressed }) => [s.cta, pressed && s.pressed]}><Text style={s.ctaText}>Find repairers</Text><Ionicons name="arrow-forward" size={18} color="#fff" /></Pressable>
+    <Pressable onPress={() => router.push(("/repair/repairers?issue=" + encodeURIComponent(String(issue || "General repair")) + "&category=" + encodeURIComponent(String(category || "Phone")) + "&model=" + encodeURIComponent(String(selectedDeviceName))) as never)} style={({ pressed }) => [s.cta, pressed && s.pressed]}><Text style={s.ctaText}>Find repairers</Text><Ionicons name="arrow-forward" size={18} color="#fff" /></Pressable>
   </ScrollView></SafeAreaView>;
 }
 

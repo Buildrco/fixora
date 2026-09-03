@@ -9,7 +9,7 @@ export type MainRoute = "home" | "repair" | "community" | "profile";
 const routes: Array<{ key: MainRoute; label: string; path: string }> = [
   { key: "home", label: "Home", path: "/" },
   { key: "repair", label: "Repairs", path: "/repair" },
-  { key: "community", label: "Community", path: "/community" },
+  { key: "community", label: "Feed", path: "/community" },
   { key: "profile", label: "Profile", path: "/profile" },
 ];
 const iconPaths = [

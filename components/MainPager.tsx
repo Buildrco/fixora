@@ -248,7 +248,7 @@ const feedStyles = StyleSheet.create({
   messageRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: colors.line },
   messageAvatar: { width: 50, height: 50, borderRadius: 25 },
   messageCopy: { flex: 1 },
-  messageName: { color: colors.ink, fontSize: 15, fontWeight: "750" },
+  messageName: { color: colors.ink, fontSize: 15, fontWeight: "700" },
   messagePreview: { color: colors.muted, fontSize: 13, marginTop: 5 },
   messageMeta: { alignItems: "flex-end", gap: 6 },
   messageTime: { color: colors.muted, fontSize: 11 },

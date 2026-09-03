@@ -20,6 +20,7 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
   const entry = useRef(new Animated.Value(0)).current;
   const likeScale = useRef(new Animated.Value(1)).current;
   const repostScale = useRef(new Animated.Value(1)).current;
+  const commentScale = useRef(new Animated.Value(1)).current;
   const bubbleValues = useRef(bubbleLayout.map(() => new Animated.Value(0))).current;
 
   const toggleLike = () => {
@@ -34,6 +35,14 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
       value.setValue(0);
       Animated.timing(value, { toValue: 1, duration: 860, delay: index * 65, useNativeDriver: true }).start();
     });
+  };
+
+  const toggleComments = () => {
+    setCommentsOpen(value => !value);
+    Animated.sequence([
+      Animated.timing(commentScale, { toValue: 1.16, duration: 100, useNativeDriver: true }),
+      Animated.spring(commentScale, { toValue: 1, friction: 5, tension: 140, useNativeDriver: true }),
+    ]).start();
   };
 
   const toggleRepost = () => {
@@ -72,7 +81,7 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
     <Image source={{ uri: image }} style={styles.postImage} />
     <View style={styles.actions}>
       <Pressable onPress={toggleLike} hitSlop={8} style={styles.action}><Animated.View style={{ transform: [{ scale: likeScale }] }}><Ionicons name={liked ? "heart" : "heart-outline"} size={21} color={liked ? colors.accent : colors.muted} /></Animated.View><Text style={liked ? styles.activeText : styles.count}>{Number(likes) + (liked ? 1 : 0)}</Text></Pressable>
-      <Pressable onPress={() => setCommentsOpen(value => !value)} hitSlop={8} style={[styles.action, commentsOpen && styles.commentAction]}><Ionicons name={commentsOpen ? "chatbubble" : "chatbubble-outline"} size={20} color={commentsOpen ? colors.blue : colors.muted} /><Text style={commentsOpen ? styles.commentText : styles.count}>{Number(comments) + localComments.length}</Text></Pressable>
+      <Pressable onPress={toggleComments} hitSlop={8} style={[styles.action, commentsOpen && styles.commentAction]}><Animated.View style={{ transform: [{ scale: commentScale }] }}><Ionicons name={commentsOpen ? "chatbubble" : "chatbubble-outline"} size={20} color={commentsOpen ? colors.blue : colors.muted} /></Animated.View><Text style={commentsOpen ? styles.commentText : styles.count}>{Number(comments) + localComments.length}</Text></Pressable>
       <Pressable onPress={toggleRepost} hitSlop={8} style={[styles.action, reposted && styles.repostAction]}><Animated.View style={{ transform: [{ scale: repostScale }] }}><Ionicons name="repeat-outline" size={21} color={reposted ? colors.green : colors.muted} /></Animated.View><Text style={reposted ? styles.repostText : styles.count}>{Number(8) + (reposted ? 1 : 0)}</Text></Pressable>
       <Pressable hitSlop={8} style={styles.action}><Ionicons name="share-outline" size={20} color={colors.muted} /></Pressable>
     </View>

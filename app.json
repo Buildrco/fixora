@@ -9,6 +9,9 @@
     "plugins": [
       "expo-router",
       "expo-updates",
+      ["expo-location", {
+        "locationWhenInUsePermission": "Allow Fixora to use your location while choosing a delivery destination."
+      }],
       "./plugins/withAndroidArm64"
     ],
     "ios": {

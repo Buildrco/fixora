@@ -29,16 +29,35 @@ export function MainPager({ initial }: { initial: MainRoute }) {
   const [pageWidth, setPageWidth] = useState(0);
   const pageProgress = useRef(new Animated.Value(initialIndex)).current;
   const pageIndex = useRef(initialIndex);
+  const trackPosition = useRef(new Animated.Value(0)).current;
+  const dragX = useRef(new Animated.Value(0)).current;
+  const trackBaseX = useRef(0);
 
   const settleTo = useCallback((target: number) => {
     pageIndex.current = target;
-    Animated.timing(pageProgress, {
-      toValue: target,
-      duration: 640,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
-  }, [pageProgress]);
+    const targetX = -target * pageWidth;
+    const dragTarget = targetX - trackBaseX.current;
+    Animated.parallel([
+      Animated.timing(pageProgress, {
+        toValue: target,
+        duration: 640,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }),
+      Animated.timing(dragX, {
+        toValue: dragTarget,
+        duration: 640,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished) {
+        trackBaseX.current = targetX;
+        trackPosition.setValue(targetX);
+        dragX.setValue(0);
+      }
+    });
+  }, [dragX, pageProgress, pageWidth, trackPosition]);
 
   const gestureStart = useRef(initialIndex);
   const onSwipeMove = useCallback((gesture: { dx: number }) => {
@@ -70,9 +89,11 @@ export function MainPager({ initial }: { initial: MainRoute }) {
       gestureSettled.current = false;
       gestureStart.current = pageIndex.current;
       pageProgress.stopAnimation();
+      dragX.stopAnimation();
+      dragX.setValue(0);
     },
     onMoveShouldSetPanResponderCapture: (_, gesture) => Math.abs(gesture.dx) > Math.abs(gesture.dy) + 14 && Math.abs(gesture.dx) > 12,
-    onPanResponderMove: (_, gesture) => onSwipeMoveRef.current(gesture),
+    onPanResponderMove: Animated.event([null, { dx: dragX }], { useNativeDriver: true, listener: (_event, gesture) => onSwipeMoveRef.current(gesture) }),
     onPanResponderRelease: (_, gesture) => {
       if (gestureSettled.current) return;
       gestureSettled.current = true;
@@ -88,8 +109,8 @@ export function MainPager({ initial }: { initial: MainRoute }) {
 
   return <SafeAreaProvider><SafeAreaView edges={["top"]} style={styles.safe}>
     <View style={styles.root}>
-      <View style={styles.viewport} onLayout={event => setPageWidth(event.nativeEvent.layout.width)}>
-        <Animated.View style={[styles.track, { width: pageWidth ? pageWidth * menuRoutes.length : "400%", transform: [{ translateX: pageProgress.interpolate({ inputRange: [0, 1, 2, 3], outputRange: [0, -pageWidth, -pageWidth * 2, -pageWidth * 3] }) }] }]}>
+      <View style={styles.viewport} onLayout={event => { const width = event.nativeEvent.layout.width; setPageWidth(width); const baseX = -pageIndex.current * width; trackBaseX.current = baseX; trackPosition.setValue(baseX); }}>
+        <Animated.View style={[styles.track, { width: pageWidth ? pageWidth * menuRoutes.length : "400%", transform: [{ translateX: Animated.add(trackPosition, dragX) }] }]}>
           <View style={[styles.page, { width: pageWidth || 1 }]}><HomePage onScroll={onScroll} /></View>
           <View style={[styles.page, { width: pageWidth || 1 }]}><RepairPage onScroll={onScroll} /></View>
           <View style={[styles.page, { width: pageWidth || 1 }]}><CommunityPage onScroll={onScroll} onOverlayChange={setCommunityOverlayOpen} /></View>

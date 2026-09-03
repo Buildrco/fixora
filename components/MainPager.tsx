@@ -166,11 +166,11 @@ function MessagesPage({ onClose }: { onClose: () => void }) {
 }
 
 function CommunityPage({ onScroll, onOverlayChange }: PageProps) {
-  const [story, setStory = useState<typeof storyItems[number] | null>(null);
+  const [story, setStory] = useState<typeof storyItems[number] | null>(null);
   const [profilePosts, setProfilePosts] = useState(getProfilePosts());
+  const [messagesOpen, setMessagesOpen] = useState(false);
   useEffect(() => subscribeProfilePosts(() => setProfilePosts(getProfilePosts())), []);
   useEffect(() => { onOverlayChange?.(Boolean(story || messagesOpen)); }, [story, messagesOpen, onOverlayChange]);
-  const [messagesOpen, setMessagesOpen] = useState(false);
   const storyMotion = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (story) {

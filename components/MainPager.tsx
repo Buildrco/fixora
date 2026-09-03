@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Image, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Animated, Easing, Image, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -154,9 +154,9 @@ function MessagesPage({ onClose }: { onClose: () => void }) {
     { name: "Fixora Learn", preview: "New tutorial drops tomorrow.", time: "3h", image: "https://i.pravatar.cc/100?img=47", unread: 1 },
   ];
   const active = conversations.find(item => item.name === selected);
-  useEffect(() => { Animated.timing(slide, { toValue: 0, duration: 380, useNativeDriver: true }).start(); }, [slide]);
+  useEffect(() => { Animated.timing(slide, { toValue: 0, duration: 520, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(); }, [slide]);
   const sendMessage = () => { if (!draft.trim()) return; setSent(current => [...current, draft.trim()]); setDraft(""); };
-  return <Animated.View style={[feedStyles.messageOverlay, { transform: [{ translateX: slide.interpolate({ inputRange: [0, 1], outputRange: [0, 420] }) }] }]}>
+  return <Animated.View style={[feedStyles.messageOverlay, { opacity: slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), transform: [{ translateX: slide.interpolate({ inputRange: [0, 1], outputRange: [0, 420] }) }, { scale: slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0.98] }) }] }]}>
     <View style={feedStyles.messageHeader}><Pressable onPress={selected ? () => setSelected(null) : onClose} hitSlop={10}><Ionicons name="arrow-back" size={23} color={colors.ink} /></Pressable><View style={feedStyles.messageTitleWrap}><Text style={feedStyles.messageTitle}>{selected || "Messages"}</Text>{selected && <Text style={feedStyles.messageSubtitle}>Active now</Text>}</View>{!selected && <Pressable style={feedStyles.newMessageButton} hitSlop={8}><Ionicons name="create-outline" size={21} color={colors.ink} /></Pressable>}</View>
     {!selected ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={feedStyles.messageList}>{conversations.map(item => <Pressable key={item.name} onPress={() => setSelected(item.name)} style={({ pressed }) => [feedStyles.messageRow, pressed && feedStyles.pressed]}><Image source={{ uri: item.image }} style={feedStyles.messageAvatar} /><View style={feedStyles.messageCopy}><Text style={feedStyles.messageName}>{item.name}</Text><Text style={feedStyles.messagePreview} numberOfLines={1}>{item.preview}</Text></View><View style={feedStyles.messageMeta}><Text style={feedStyles.messageTime}>{item.time}</Text>{item.unread > 0 && <View style={feedStyles.unread}><Text style={feedStyles.unreadText}>{item.unread}</Text></View>}</View></Pressable>)}</ScrollView> : <View style={feedStyles.chatBody}><View style={feedStyles.chatIntro}><Image source={{ uri: active?.image }} style={feedStyles.chatAvatar} /><Text style={feedStyles.chatName}>{active?.name}</Text><Text style={feedStyles.chatIntroText}>This is the beginning of your conversation.</Text></View><View style={feedStyles.sentMessages}>{sent.map((message, index) => <View key={index} style={feedStyles.sentBubble}><Text style={feedStyles.sentText}>{message}</Text></View>)}</View><View style={feedStyles.chatComposer}><TextInput value={draft} onChangeText={setDraft} onSubmitEditing={sendMessage} returnKeyType="send" placeholder="Message..." placeholderTextColor={colors.muted} style={feedStyles.messageInput} /><Pressable onPress={sendMessage} hitSlop={8}><Ionicons name="arrow-up-circle" size={30} color={draft.trim() ? colors.blue : colors.line} /></Pressable></View></View>}
   </Animated.View>;
@@ -165,6 +165,13 @@ function MessagesPage({ onClose }: { onClose: () => void }) {
 function CommunityPage({ onScroll }: PageProps) {
   const [story, setStory] = useState<typeof storyItems[number] | null>(null);
   const [messagesOpen, setMessagesOpen] = useState(false);
+  const storyMotion = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (story) {
+      storyMotion.setValue(0);
+      Animated.timing(storyMotion, { toValue: 1, duration: 460, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    }
+  }, [story, storyMotion]);
   return <View style={feedStyles.root}>
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={feedStyles.content} onScroll={onScroll} scrollEventThrottle={16}>
       <View style={feedStyles.head}><Text style={feedStyles.title}>Feed</Text><View style={feedStyles.icons}><IconButton name="search-outline" /><Pressable onPress={() => setMessagesOpen(true)} style={feedStyles.messageButton}><Ionicons name="chatbubble-ellipses-outline" size={22} color={colors.ink} /><View style={feedStyles.messageDot}><Text style={feedStyles.messageDotText}>3</Text></View></Pressable></View></View>
@@ -180,7 +187,7 @@ function CommunityPage({ onScroll }: PageProps) {
       <PostCard delay={380} name="Fixora Learn" handle="@fixoralearn" text="Tutorial: three safe checks to try when your phone won’t charge. Save this one before you visit a repairer." image="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1000&q=85" />
       <PostCard delay={480} name="Circuit Corner" handle="@circuitcorner" text="A little patience, the right tools, and a clean workspace make difficult repairs feel possible." image="https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&w=1000&q=85" />
     </ScrollView>
-    {story && <View style={feedStyles.storyViewer}><Image source={{ uri: story.image }} style={feedStyles.storyViewerImage} /><View style={feedStyles.storyViewerShade} /><Pressable onPress={() => setStory(null)} style={feedStyles.storyClose} hitSlop={8}><Ionicons name="close" size={25} color="#fff" /></Pressable><View style={feedStyles.storyViewerCopy}><Text style={feedStyles.storyViewerName}>{story.name}</Text><Text style={feedStyles.storyViewerCaption}>{story.caption}</Text></View></View>}
+    {story && <Animated.View style={[feedStyles.storyViewer, { opacity: storyMotion, transform: [{ scale: storyMotion.interpolate({ inputRange: [0, 1], outputRange: [1.04, 1] }) }] }]}><Image source={{ uri: story.image }} style={feedStyles.storyViewerImage} /><View style={feedStyles.storyViewerShade} /><Pressable onPress={() => setStory(null)} style={feedStyles.storyClose} hitSlop={8}><Ionicons name="close" size={25} color="#fff" /></Pressable><View style={feedStyles.storyViewerCopy}><Text style={feedStyles.storyViewerName}>{story.name}</Text><Text style={feedStyles.storyViewerCaption}>{story.caption}</Text></View></Animated.View>}
     {messagesOpen && <MessagesPage onClose={() => setMessagesOpen(false)} />}
   </View>;
 }

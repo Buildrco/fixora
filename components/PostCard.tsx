@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Animated, Image, Pressable, Text, TextInput, View, StyleSheet } from "react-native";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { colors, radius } from "../constants/theme";
 
 const bubbleLayout = [
@@ -11,12 +11,13 @@ const bubbleLayout = [
   { left: 68, drift: -22, rise: 94, rotate: "-8deg" },
 ];
 
-export function PostCard({ name, handle, text, image, likes = "42", comments = "13" }: { name: string; handle: string; text: string; image: string; likes?: string; comments?: string }) {
+export function PostCard({ name, handle, text, image, likes = "42", comments = "13", delay = 0 }: { name: string; handle: string; text: string; image: string; likes?: string; comments?: string; delay?: number }) {
   const [liked, setLiked] = useState(false);
   const [reposted, setReposted] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [localComments, setLocalComments] = useState<string[]>([]);
+  const entry = useRef(new Animated.Value(0)).current;
   const likeScale = useRef(new Animated.Value(1)).current;
   const repostScale = useRef(new Animated.Value(1)).current;
   const bubbleValues = useRef(bubbleLayout.map(() => new Animated.Value(0))).current;
@@ -43,6 +44,10 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
     ]).start();
   };
 
+  useEffect(() => {
+    Animated.timing(entry, { toValue: 1, duration: 540, delay, useNativeDriver: true }).start();
+  }, [delay, entry]);
+
   const addComment = () => {
     const value = commentText.trim();
     if (!value) return;
@@ -50,7 +55,7 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
     setCommentText("");
   };
 
-  return <View style={styles.card}>
+  return <Animated.View style={[styles.card, { opacity: entry, transform: [{ translateY: entry.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }] }]}>
     <View pointerEvents="none" style={styles.bubbles}>
       {bubbleValues.map((value, index) => {
         const bubble = bubbleLayout[index];
@@ -75,7 +80,7 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
       {localComments.map((comment, index) => <View key={index} style={styles.commentRow}><View style={styles.commentAvatar}><Ionicons name="person" size={13} color={colors.muted} /></View><Text style={styles.commentCopy}>{comment}</Text></View>)}
       <View style={styles.commentComposer}><TextInput value={commentText} onChangeText={setCommentText} onSubmitEditing={addComment} returnKeyType="send" placeholder="Write a comment..." placeholderTextColor={colors.muted} style={styles.commentInput} /><Pressable onPress={addComment} hitSlop={8}><Ionicons name="arrow-up-circle" size={27} color={commentText.trim() ? colors.blue : colors.line} /></Pressable></View>
     </View>}
-  </View>;
+  </Animated.View>;
 }
 
 const styles = StyleSheet.create({

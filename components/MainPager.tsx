@@ -30,11 +30,10 @@ export function MainPager({ initial }: { initial: MainRoute }) {
 
   const settleTo = useCallback((target: number) => {
     pageIndex.current = target;
-    Animated.spring(pageProgress, {
+    Animated.timing(pageProgress, {
       toValue: target,
-      tension: 86,
-      friction: 11,
-      overshootClamping: true,
+      duration: 640,
+      easing: Easing.out(Easing.cubic),
       useNativeDriver: false,
     }).start();
   }, [pageProgress]);
@@ -50,10 +49,10 @@ export function MainPager({ initial }: { initial: MainRoute }) {
   const onSwipeEnd = useCallback((gesture: { dx: number; vx: number }) => {
     if (!pageWidth) return;
     const current = pageIndex.current;
-    const distance = -gesture.dx / pageWidth;
-    const projected = current + distance - gesture.vx * 0.18;
-    let target = Math.round(projected);
-    if (Math.abs(gesture.dx) < 36 && Math.abs(gesture.vx) < 0.2) target = current;
+    const distance = Math.abs(gesture.dx);
+    const shouldAdvance = distance > pageWidth * 0.22 || Math.abs(gesture.vx) > 0.45;
+    let target = current;
+    if (shouldAdvance) target = current + (gesture.dx < 0 ? 1 : -1);
     target = Math.max(0, Math.min(menuRoutes.length - 1, target));
     settleTo(target);
   }, [pageWidth, settleTo]);
@@ -68,7 +67,7 @@ export function MainPager({ initial }: { initial: MainRoute }) {
       gestureSettled.current = false;
       pageProgress.stopAnimation();
     },
-    onMoveShouldSetPanResponderCapture: (_, gesture) => Math.abs(gesture.dx) > Math.abs(gesture.dy) + 10 && Math.abs(gesture.dx) > 8,
+    onMoveShouldSetPanResponderCapture: (_, gesture) => Math.abs(gesture.dx) > Math.abs(gesture.dy) + 14 && Math.abs(gesture.dx) > 12,
     onPanResponderMove: (_, gesture) => onSwipeMoveRef.current(gesture),
     onPanResponderRelease: (_, gesture) => {
       if (gestureSettled.current) return;

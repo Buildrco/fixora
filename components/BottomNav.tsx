@@ -53,7 +53,7 @@ export function BottomNav({ active, visibility, pageProgress, onSelect, swipePan
   const [barWidth, setBarWidth] = useState(0);
   const select = (index: number) => onSelect ? onSelect(index) : router.replace(routes[index].path as never);
   const highlightLeft = progress.interpolate({ inputRange: [0, 1, 2, 3], outputRange: [7, 7 + Math.max(0, barWidth - 14) / 4, 7 + Math.max(0, barWidth - 14) / 2, 7 + Math.max(0, barWidth - 14) * 3 / 4], extrapolate: "clamp" });
-  const highlightWidth = progress.interpolate({ inputRange: [0, 0.5, 1, 1.5, 2, 2.5, 3], outputRange: [82, 94, 82, 94, 82, 94, 82], extrapolate: "clamp" });
+  const highlightWidth = 82;
   return <Animated.View style={[styles.shell, { paddingBottom: Math.max(insets.bottom, 14), opacity: visibility, transform: [{ translateY: visibility.interpolate({ inputRange: [0, 1], outputRange: [110, 0] }) }] }]}>
     <View style={styles.bar} onLayout={event => setBarWidth(event.nativeEvent.layout.width)} {...swipePanHandlers}>
       <Animated.View pointerEvents="none" style={[styles.highlight, { left: highlightLeft, width: highlightWidth }]} />
@@ -90,9 +90,9 @@ const styles = StyleSheet.create({
   bar: { minHeight: 60, width: "88%", paddingHorizontal: 7, borderRadius: 32, backgroundColor: colors.card, flexDirection: "row", alignItems: "center", justifyContent: "space-around" },
   highlight: { position: "absolute", top: 10, height: 40, borderRadius: 20, backgroundColor: colors.blue },
   touch: { flex: 1, minHeight: 52, alignItems: "center", justifyContent: "center", zIndex: 2 },
-  item: { height: 40, width: "100%", paddingHorizontal: 2, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  item: { height: 40, width: "100%", paddingHorizontal: 2, alignItems: "center", justifyContent: "center" },
   iconSlot: { width: 24, height: 24, alignItems: "center", justifyContent: "center", position: "relative" },
   iconOverlay: { alignItems: "center", justifyContent: "center" },
-  labelWindow: { overflow: "hidden" },
+  labelWindow: { position: "absolute", left: 34, top: 0, height: 40, overflow: "hidden", justifyContent: "center" },
   label: { color: "#fff", fontSize: 11, fontWeight: "800" },
 });

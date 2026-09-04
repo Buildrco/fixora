@@ -93,7 +93,10 @@ export function MainPager({ initial }: { initial: MainRoute }) {
       dragX.setValue(0);
     },
     onMoveShouldSetPanResponderCapture: (_, gesture) => Math.abs(gesture.dx) > Math.abs(gesture.dy) + 14 && Math.abs(gesture.dx) > 12,
-    onPanResponderMove: Animated.event([null, { dx: dragX }], { useNativeDriver: true, listener: (_event, gesture) => onSwipeMoveRef.current(gesture) }),
+    onPanResponderMove: (_, gesture) => {
+      dragX.setValue(gesture.dx);
+      onSwipeMoveRef.current(gesture);
+    },
     onPanResponderRelease: (_, gesture) => {
       if (gestureSettled.current) return;
       gestureSettled.current = true;

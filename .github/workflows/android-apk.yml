@@ -5,10 +5,15 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: fixora-android-apk-main
+  cancel-in-progress: true
+
 jobs:
   build-android:
-    name: Build native Android APK
+    name: Build Android APK with EAS
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -17,7 +22,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
+          cache: npm
 
       - name: Verify project files
         run: |
@@ -29,16 +35,23 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Generate native Android project
-        run: npx expo prebuild --platform android --non-interactive --clean
+      - name: Install EAS CLI
+        run: npm install --global eas-cli
 
-      - name: Build release APK
-        working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
+      - name: Build Android APK remotely
+        run: eas build --platform android --profile preview --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          CI: true
+
+      - name: Download APK
+        run: eas build:download --platform android --latest --path fixora-android.apk --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: fixora-android-apk
-          path: android/app/build/outputs/apk/release/*.apk
+          path: fixora-android.apk
           if-no-files-found: error

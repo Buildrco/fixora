@@ -31,6 +31,9 @@ jobs:
           node --version
           npm --version
 
+      - name: Install dependencies for Expo config
+        run: npm install --no-package-lock --legacy-peer-deps
+
       - name: Install EAS CLI
         run: npm install --global eas-cli
 

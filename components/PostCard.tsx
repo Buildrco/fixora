@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Animated, Image, Pressable, Text, TextInput, View, StyleSheet, Modal, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
+import { Animated, Image, Pressable, Text, TextInput, View, StyleSheet, Modal, ScrollView, KeyboardAvoidingView, Platform, PanResponder } from "react-native";
 import { useEffect, useRef, useState } from "react";
 import { colors, radius } from "../constants/theme";
 
@@ -17,6 +17,10 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [localComments, setLocalComments] = useState<string[]>(initialComments);
+  const sheetDragY = useRef(new Animated.Value(0)).current;
+  const commentScrollY = useRef(0);
+  const sheetPan = useRef(PanResponder.create({ onMoveShouldSetPanResponderCapture: (_, gesture) => gesture.dy > 7 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.2 && commentScrollY.current <= 1, onPanResponderGrant: () => sheetDragY.setValue(0), onPanResponderMove: (_, gesture) => sheetDragY.setValue(Math.max(0, gesture.dy)), onPanResponderRelease: (_, gesture) => { if (gesture.dy > 115 || gesture.vy > 1.05) { Animated.timing(sheetDragY, { toValue: 650, duration: 170, useNativeDriver: true }).start(() => { setCommentsOpen(false); sheetDragY.setValue(0); }); } else { Animated.spring(sheetDragY, { toValue: 0, useNativeDriver: true, friction: 9, tension: 110 }).start(); } }, onPanResponderTerminate: () => Animated.spring(sheetDragY, { toValue: 0, useNativeDriver: true, friction: 9, tension: 110 }).start() })).current;
+  useEffect(() => { if (commentsOpen) sheetDragY.setValue(0); }, [commentsOpen, sheetDragY]);
   const entry = useRef(new Animated.Value(0)).current;
   const likeScale = useRef(new Animated.Value(1)).current;
   const repostScale = useRef(new Animated.Value(1)).current;
@@ -90,11 +94,11 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
     <Modal visible={commentsOpen} transparent animationType="slide" onRequestClose={() => setCommentsOpen(false)}>
       <View style={styles.modalRoot}>
         <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCommentsOpen(false)} />
-        <KeyboardAvoidingView style={styles.commentsSheet} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingView {...sheetPan.panHandlers} style={[styles.commentsSheet, { transform: [{ translateY: sheetDragY }] }]} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.sheetHandle} />
           <View style={styles.sheetHeader}><Text style={styles.sheetTitle}>Comments</Text><Pressable onPress={() => setCommentsOpen(false)} hitSlop={8}><Ionicons name="close" size={22} color={colors.ink} /></Pressable></View>
           <View style={styles.sortRow}><Text style={styles.sortText}>Most relevant</Text><Ionicons name="chevron-down" size={14} color={colors.muted} /></View>
-          <ScrollView style={styles.commentList} contentContainerStyle={styles.commentListContent} keyboardShouldPersistTaps="handled">
+          <ScrollView style={styles.commentList} contentContainerStyle={styles.commentListContent} keyboardShouldPersistTaps="handled" scrollEventThrottle={16} onScroll={event => { commentScrollY.current = event.nativeEvent.contentOffset.y; }}>
             {localComments.length ? localComments.map((comment, index) => <View key={index} style={styles.commentEntry}><View style={styles.commentAvatar}><Ionicons name="person" size={15} color={colors.muted} /></View><View style={{ flex: 1 }}><View style={styles.commentBubble}><Text style={styles.commentAuthor}>Community member</Text><Text style={styles.commentCopy}>{comment}</Text></View><Text style={styles.commentMeta}>1h · Like · Reply</Text></View></View>) : <Text style={styles.emptyComments}>Be the first to comment.</Text>}
           </ScrollView>
           <View style={styles.commentComposer}><View style={styles.commentCurrentAvatar}><Ionicons name="person" size={16} color={colors.muted} /></View><TextInput value={commentText} onChangeText={setCommentText} onSubmitEditing={addComment} returnKeyType="send" placeholder="Write a comment..." placeholderTextColor={colors.muted} style={styles.commentInput} /><Pressable onPress={addComment} hitSlop={8} accessibilityLabel="Post comment"><Ionicons name="send" size={20} color={commentText.trim() ? colors.blue : colors.line} /></Pressable></View>

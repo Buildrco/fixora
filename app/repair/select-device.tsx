@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React from "react";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { colors, radius } from "../../constants/theme";
 import { IconButton } from "../../components/IconButton";
 
@@ -14,12 +15,22 @@ const categories = [
 
 export default function SelectDevice() {
   const router = useRouter();
-  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+  const [search, setSearch] = React.useState("");
+  const query = search.trim().toLowerCase();
+  const visibleCategories = categories.filter(category => !query || (category.key + " " + category.label + " " + category.copy).toLowerCase().includes(query));
+  const openSearch = () => {
+    const value = search.trim();
+    const normalized = value.toLowerCase();
+    const category = /mac ?book/.test(normalized) ? "MacBook" : /laptop|notebook|hp |lenovo|dell|asus/.test(normalized) ? "Laptop" : /tablet|ipad|galaxy tab/.test(normalized) ? "Tablet" : "Phone";
+    router.push(("/repair/models?category=" + encodeURIComponent(category) + "&search=" + encodeURIComponent(value)) as never);
+  };
+  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
     <View style={s.header}><IconButton name="chevron-back" onPress={() => router.back()} /><Text style={s.headerTitle}>Choose your device</Text><View style={s.spacer} /></View>
     <Text style={s.step}>DEVICE 1 OF 2</Text><Text style={s.title}>What are we fixing?</Text><Text style={s.subtitle}>Start with a category. We’ll show the right brands and models next.</Text>
+    <View style={s.searchBox}><Ionicons name="search-outline" size={19} color={colors.muted} /><TextInput value={search} onChangeText={setSearch} onSubmitEditing={openSearch} returnKeyType="search" autoCapitalize="none" placeholder="Search a phone, model, or category" placeholderTextColor={colors.muted} style={s.searchInput} accessibilityLabel="Search device or model" />{search.length > 0 && <Pressable onPress={() => setSearch("")} accessibilityLabel="Clear search"><Ionicons name="close-circle" size={19} color={colors.muted} /></Pressable>}<Pressable onPress={openSearch} style={s.searchButton} accessibilityLabel="Search models"><Ionicons name="arrow-forward" size={18} color="#fff" /></Pressable></View>
     <View style={s.hero}><Text style={s.heroEmoji}>🛠️</Text><View style={{ flex: 1 }}><Text style={s.heroTitle}>The right specialist starts here</Text><Text style={s.heroCopy}>Tell us what you’re bringing in and we’ll keep the repair details focused.</Text></View></View>
     <Text style={s.section}>Select a category</Text>
-    <View style={s.grid}>{categories.map(category => <Pressable key={category.key} onPress={() => router.push(("/repair/models?category=" + encodeURIComponent(category.key)) as never)} style={({ pressed }) => [s.card, pressed && s.pressed]}><View style={s.cardTop}><View style={s.icon}><Text style={s.emoji}>{category.emoji}</Text></View><Ionicons name="arrow-up-right" size={18} color={colors.muted} /></View><Text style={s.cardTitle}>{category.label}</Text><Text style={s.cardCopy}>{category.copy}</Text></Pressable>)}</View>
+    {visibleCategories.length ? <View style={s.grid}>{visibleCategories.map(category => <Pressable key={category.key} onPress={() => router.push(("/repair/models?category=" + encodeURIComponent(category.key) + (search.trim() ? "&search=" + encodeURIComponent(search.trim()) : "")) as never)} style={({ pressed }) => [s.card, pressed && s.pressed]}><View style={s.cardTop}><View style={s.icon}><Text style={s.emoji}>{category.emoji}</Text></View><Ionicons name="arrow-up-right" size={18} color={colors.muted} /></View><Text style={s.cardTitle}>{category.label}</Text><Text style={s.cardCopy}>{category.copy}</Text></Pressable>)}</View> : <Text style={s.noCategories}>No category matches. Press the arrow to search models directly.</Text>}
     <Text style={s.note}>You can change this before matching with a repairer.</Text>
   </ScrollView></SafeAreaView>;
 }
@@ -33,7 +44,10 @@ const s = StyleSheet.create({
   step: { fontSize: 11, color: colors.accent, fontWeight: "800", letterSpacing: 0.8, marginTop: 28 },
   title: { fontSize: 30, lineHeight: 35, fontWeight: "800", color: colors.ink, letterSpacing: -0.8, marginTop: 6 },
   subtitle: { fontSize: 14, color: colors.muted, lineHeight: 21, marginTop: 7 },
-  hero: { marginTop: 20, padding: 15, borderRadius: 20, backgroundColor: colors.accentSoft, flexDirection: "row", alignItems: "center", gap: 12 },
+  searchBox: { minHeight: 48, marginTop: 16, paddingLeft: 13, paddingRight: 6, borderRadius: 15, backgroundColor: colors.soft, flexDirection: "row", alignItems: "center", gap: 8 },
+  searchInput: { flex: 1, color: colors.ink, fontSize: 12, paddingVertical: 10 },
+  searchButton: { width: 38, height: 38, borderRadius: 12, backgroundColor: colors.blue, alignItems: "center", justifyContent: "center" },
+  hero: { marginTop: 18, padding: 15, borderRadius: 20, backgroundColor: colors.accentSoft, flexDirection: "row", alignItems: "center", gap: 12 },
   heroEmoji: { fontSize: 31 },
   heroTitle: { fontSize: 14, fontWeight: "800", color: colors.ink },
   heroCopy: { fontSize: 12, color: colors.muted, lineHeight: 17, marginTop: 3 },
@@ -45,6 +59,7 @@ const s = StyleSheet.create({
   emoji: { fontSize: 25 },
   cardTitle: { fontSize: 16, fontWeight: "800", color: colors.ink, marginTop: 15 },
   cardCopy: { fontSize: 11, lineHeight: 16, color: colors.muted, marginTop: 3 },
+  noCategories: { paddingVertical: 24, textAlign: "center", color: colors.muted, fontSize: 12, lineHeight: 18 },
   note: { textAlign: "center", fontSize: 12, color: colors.muted, marginTop: 23 },
   pressed: { opacity: 0.78, transform: [{ scale: 0.98 }] },
 });

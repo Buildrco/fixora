@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Easing, Image, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Animated, Easing, Image, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,7 +9,7 @@ import { SectionTitle } from "./SectionTitle";
 import { Chip } from "./Chip";
 import { VendorCard } from "./VendorCard";
 import { PostCard } from "./PostCard";
-import { getProfilePosts, subscribeProfilePosts } from "../data/profileStore";
+import { addProfilePost, getProfilePosts, subscribeProfilePosts } from "../data/profileStore";
 import { BottomNav, MainRoute, useBottomNavVisibility } from "./BottomNav";
 
 const repairImg = "https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&w=900&q=85";
@@ -137,7 +137,7 @@ function HomePage({ onScroll }: PageProps) {
     <SectionTitle title="Quick actions" />
     <View style={homeStyles.actionsGrid}>{[["phone-portrait-outline", "Shop phones", "/shop"], ["construct-outline", "Request repair", "/repair"], ["play-circle-outline", "Learn repairs", "/learn"], ["people-outline", "Join community", "/community"]].map(([icon, label, path]) => <Pressable key={label} onPress={() => router.push(path as never)} style={({ pressed }) => [homeStyles.quick, pressed && homeStyles.pressed]}><View style={homeStyles.quickIcon}><Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={22} color={colors.ink} /></View><Text style={homeStyles.quickText}>{label}</Text></Pressable>)}</View>
     <SectionTitle title="Repairers near you" action="See all" />
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}><VendorCard name="K-Tech Repairs" image={repairImg} price="GH₵280" distance="2.1 km" rating="4.9" /><VendorCard name="iFix Lab" image={shopImg} price="GH₵350" distance="3.4 km" rating="4.8" /></ScrollView>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false}><VendorCard name="K-Tech Repairs" image={repairImg} price="GH₵280" distance="2.1 km" rating="4.9" onPress={() => router.push({ pathname: "/profile/[id]", params: { id: "k-tech-repairs" } } as never)} /><VendorCard name="iFix Lab" image={shopImg} price="GH₵350" distance="3.4 km" rating="4.8" onPress={() => router.push({ pathname: "/profile/[id]", params: { id: "ifix-lab" } } as never)} /></ScrollView>
     <View style={homeStyles.popularSection}><SectionTitle title="Popular phones" action="Shop" /><View style={homeStyles.productRow}><Product image="https://images.unsplash.com/photo-1591337676887-a217a6970a8a?auto=format&fit=crop&w=700&q=85" name="iPhone 15 Pro" price="GH₵14,500" onPress={() => router.push("/product/iphone-15-pro" as never)} /><Product image="https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?auto=format&fit=crop&w=700&q=85" name="Galaxy S24" price="GH₵11,800" onPress={() => router.push("/product/galaxy-s24" as never)} /></View></View>
   </ScrollView>;
 }
@@ -163,6 +163,10 @@ const storyItems = [
 
 type StoryMessage = { id: string; recipient: string; storyAuthor: string; storyCaption: string; storyImage: string; text: string };
 
+function profileRouteId(value: string) {
+  return value.replace(/^@/, "").toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-|-$/g, "") || "community-member";
+}
+
 function StoryTile({ story, onPress }: { story: typeof storyItems[number]; onPress: () => void }) {
   return <Pressable onPress={onPress} style={feedStyles.storyTile}>
     <Image source={{ uri: story.image }} style={feedStyles.storyImage} />
@@ -172,11 +176,20 @@ function StoryTile({ story, onPress }: { story: typeof storyItems[number]; onPre
   </Pressable>;
 }
 
-function MessagesPage({ onClose, onOpenStory, initialSelected, storyMessages }: { onClose: () => void; onOpenStory: (message: StoryMessage) => void; initialSelected: string | null; storyMessages: StoryMessage[] }) {
+const communityPosts = [
+  { id: "kwame-repairs", name: "Kwame Repairs", handle: "@kwamerepairs", text: "Board repair today. Found a short on the power rail — sharing the diagnosis process for anyone learning microsoldering.", image: "https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&w=1000&q=85", initialComments: ["Could you show the meter reading?", "Thanks for sharing the diagnosis."] },
+  { id: "ktechmobile", name: "K-Tech Mobile", handle: "@ktechmobile", text: "Three clean iPhone 15 Pro units just arrived. Verified stock, 12-month warranty.", image: "https://images.unsplash.com/photo-1592286927505-2fd0b2b8b0a4?auto=format&fit=crop&w=1000&q=85", initialComments: ["Is the warranty valid across Ghana?", "That finish looks great."] },
+  { id: "ama-phone-clinic", name: "Ama’s Phone Clinic", handle: "@amasphoneclinic", text: "Before and after: a careful screen replacement on an iPhone 13. Small details make a repair feel brand new.", image: "https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?auto=format&fit=crop&w=1000&q=85", initialComments: ["What adhesive did you use?", "Clean repair—thanks for posting."] },
+  { id: "fixora-learn", name: "Fixora Learn", handle: "@fixoralearn", text: "Tutorial: three safe checks to try when your phone won’t charge. Save this one before you visit a repairer.", image: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1000&q=85", initialComments: ["Can you share the full checklist?", "This fixed my charging issue."] },
+  { id: "circuit-corner", name: "Circuit Corner", handle: "@circuitcorner", text: "A little patience, the right tools, and a clean workspace make difficult repairs feel possible.", image: "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&w=1000&q=85", initialComments: ["Which microscope setup is this?", "Great close-up of the board."] },
+];
+
+function MessagesPage({ onClose, onOpenStory, onOpenProfile, initialSelected, storyMessages }: { onClose: () => void; onOpenStory: (message: StoryMessage) => void; onOpenProfile: (id: string) => void; initialSelected: string | null; storyMessages: StoryMessage[] }) {
   const slide = useRef(new Animated.Value(1)).current;
   const [selected, setSelected] = useState<string | null>(initialSelected);
   const [draft, setDraft] = useState("");
   const [sent, setSent] = useState<{ recipient: string; text: string }[]>([]);
+  const [newMessageMode, setNewMessageMode] = useState(false);
   const baseConversations = [
     { name: "K-Tech Mobile", preview: "The replacement screen is ready.", time: "9m", image: "https://i.pravatar.cc/100?img=12", unread: 2 },
     { name: "Ama’s Phone Clinic", preview: "Thanks for the repair notes!", time: "1h", image: "https://i.pravatar.cc/100?img=32", unread: 0 },
@@ -191,21 +204,31 @@ function MessagesPage({ onClose, onOpenStory, initialSelected, storyMessages }: 
   useEffect(() => { Animated.timing(slide, { toValue: 0, duration: 520, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(); }, [slide]);
   const sendMessage = () => { if (!draft.trim() || !selected) return; setSent(current => [...current, { recipient: selected, text: draft.trim() }]); setDraft(""); };
   return <Animated.View style={[feedStyles.messageOverlay, { opacity: slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), transform: [{ translateX: slide.interpolate({ inputRange: [0, 1], outputRange: [0, 420] }) }, { scale: slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0.98] }) }] }]}>
-    <View style={feedStyles.messageHeader}><Pressable onPress={selected ? () => setSelected(null) : onClose} hitSlop={10}><Ionicons name="arrow-back" size={23} color={colors.ink} /></Pressable><View style={feedStyles.messageTitleWrap}><Text style={feedStyles.messageTitle}>{selected || "Messages"}</Text>{selected && <Text style={feedStyles.messageSubtitle}>Active now</Text>}</View>{!selected && <Pressable style={feedStyles.newMessageButton} hitSlop={8}><Ionicons name="create-outline" size={21} color={colors.ink} /></Pressable>}</View>
-    {!selected ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={feedStyles.messageList}>{conversations.map(item => <Pressable key={item.name} onPress={() => setSelected(item.name)} style={({ pressed }) => [feedStyles.messageRow, pressed && feedStyles.pressed]}><Image source={{ uri: item.image }} style={feedStyles.messageAvatar} /><View style={feedStyles.messageCopy}><Text style={feedStyles.messageName}>{item.name}</Text><Text style={feedStyles.messagePreview} numberOfLines={1}>{item.preview}</Text></View><View style={feedStyles.messageMeta}><Text style={feedStyles.messageTime}>{item.time}</Text>{item.unread > 0 && <View style={feedStyles.unread}><Text style={feedStyles.unreadText}>{item.unread}</Text></View>}</View></Pressable>)}</ScrollView> : <View style={feedStyles.chatBody}><View style={feedStyles.chatIntro}><Image source={{ uri: active?.image }} style={feedStyles.chatAvatar} /><Text style={feedStyles.chatName}>{active?.name}</Text><Text style={feedStyles.chatIntroText}>This is the beginning of your conversation.</Text></View><View style={feedStyles.sentMessages}>{storyMessages.filter(message => message.recipient === selected).map(message => <View key={message.id} style={feedStyles.storyReplyBubble}><Pressable onPress={() => onOpenStory(message)} style={feedStyles.storyReplyContext} accessibilityRole="button" accessibilityLabel={"Open " + message.storyAuthor + "’s story"}><Image source={{ uri: message.storyImage }} style={feedStyles.storyReplyContextImage} /><View style={{ flex: 1 }}><Text style={feedStyles.storyReplyLabel}>Replied to {message.storyAuthor}’s story</Text><Text numberOfLines={1} style={feedStyles.storyReplyCaption}>{message.storyCaption}</Text></View></Pressable><Text style={feedStyles.sentText}>{message.text}</Text></View>)}{sent.filter(message => message.recipient === selected).map((message, index) => <View key={index} style={feedStyles.sentBubble}><Text style={feedStyles.sentText}>{message.text}</Text></View>)}</View><View style={feedStyles.chatComposer}><TextInput value={draft} onChangeText={setDraft} onSubmitEditing={sendMessage} returnKeyType="send" placeholder="Message..." placeholderTextColor={colors.muted} style={feedStyles.messageInput} /><Pressable onPress={sendMessage} hitSlop={8}><Ionicons name="arrow-up-circle" size={30} color={draft.trim() ? colors.blue : colors.line} /></Pressable></View></View>}
+    <KeyboardAvoidingView style={feedStyles.messageKeyboard} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={0}>
+      <View style={feedStyles.messageHeader}><Pressable onPress={selected ? () => setSelected(null) : newMessageMode ? () => setNewMessageMode(false) : onClose} hitSlop={10}><Ionicons name="arrow-back" size={23} color={colors.ink} /></Pressable><View style={feedStyles.messageTitleWrap}><Text style={feedStyles.messageTitle}>{selected || (newMessageMode ? "New message" : "Messages")}</Text>{selected && <Text style={feedStyles.messageSubtitle}>Active now</Text>}</View>{!selected && !newMessageMode && <Pressable style={feedStyles.newMessageButton} hitSlop={8} onPress={() => setNewMessageMode(true)} accessibilityRole="button" accessibilityLabel="Start a new message"><Ionicons name="create-outline" size={21} color={colors.ink} /></Pressable>}</View>
+      {!selected ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={feedStyles.messageList} keyboardShouldPersistTaps="always">{newMessageMode && <Text style={feedStyles.newMessageHint}>Choose someone to start a conversation.</Text>}{conversations.map(item => <Pressable key={item.name} onPress={() => { setSelected(item.name); setNewMessageMode(false); }} style={({ pressed }) => [feedStyles.messageRow, pressed && feedStyles.pressed]}><Pressable onPress={() => onOpenProfile(profileRouteId(item.name))} accessibilityRole="button"><Image source={{ uri: item.image }} style={feedStyles.messageAvatar} /></Pressable><View style={feedStyles.messageCopy}><Text style={feedStyles.messageName}>{item.name}</Text><Text style={feedStyles.messagePreview} numberOfLines={1}>{item.preview}</Text></View><View style={feedStyles.messageMeta}><Text style={feedStyles.messageTime}>{item.time}</Text>{item.unread > 0 && <View style={feedStyles.unread}><Text style={feedStyles.unreadText}>{item.unread}</Text></View>}</View></Pressable>)}</ScrollView> : <View style={feedStyles.chatBody}><View style={feedStyles.chatIntro}><Pressable onPress={() => onOpenProfile(profileRouteId(active?.name || selected))} accessibilityRole="button" accessibilityLabel={"View " + (active?.name || selected) + " profile"}><Image source={{ uri: active?.image }} style={feedStyles.chatAvatar} /><Text style={feedStyles.chatName}>{active?.name || selected}</Text></Pressable><Text style={feedStyles.chatIntroText}>This is the beginning of your conversation.</Text></View><View style={feedStyles.sentMessages}>{storyMessages.filter(message => message.recipient === selected).map(message => <View key={message.id} style={feedStyles.storyReplyBubble}><Pressable onPress={() => onOpenStory(message)} style={feedStyles.storyReplyContext} accessibilityRole="button" accessibilityLabel={"Open " + message.storyAuthor + "’s story"}><Image source={{ uri: message.storyImage }} style={feedStyles.storyReplyContextImage} /><View style={{ flex: 1 }}><Text style={feedStyles.storyReplyLabel}>Replied to {message.storyAuthor}’s story</Text><Text numberOfLines={1} style={feedStyles.storyReplyCaption}>{message.storyCaption}</Text></View></Pressable><Text style={feedStyles.sentText}>{message.text}</Text></View>)}{sent.filter(message => message.recipient === selected).map((message, index) => <View key={index} style={feedStyles.sentBubble}><Text style={feedStyles.sentText}>{message.text}</Text></View>)}</View><View style={feedStyles.chatComposer}><TextInput value={draft} onChangeText={setDraft} onSubmitEditing={sendMessage} returnKeyType="send" placeholder="Message..." placeholderTextColor={colors.muted} style={feedStyles.messageInput} /><Pressable onPress={sendMessage} hitSlop={8} accessibilityRole="button" accessibilityLabel="Send message"><Ionicons name="arrow-up-circle" size={30} color={draft.trim() ? colors.blue : colors.line} /></Pressable></View></View>}
+    </KeyboardAvoidingView>
   </Animated.View>;
 }
 function CommunityPage({ onScroll, onOverlayChange }: PageProps) {
+  const router = useRouter();
+  const { width, height } = useWindowDimensions();
   const [story, setStory] = useState<typeof storyItems[number] | null>(null);
   const [profilePosts, setProfilePosts] = useState(getProfilePosts());
   const [messagesOpen, setMessagesOpen] = useState(false);
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [postDraft, setPostDraft] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchText, setSearchText] = useState("");
   const [storyMessages, setStoryMessages] = useState<StoryMessage[]>([]);
   const [storyReplyText, setStoryReplyText] = useState("");
   const [likedStories, setLikedStories] = useState<string[]>([]);
   const [initialMessageRecipient, setInitialMessageRecipient] = useState<string | null>(null);
   const [storyReturn, setStoryReturn] = useState<{ kind: "community" | "messages"; recipient: string | null }>({ kind: "community", recipient: null });
+  const dimensions = useRef({ width, height });
+  dimensions.current = { width, height };
   useEffect(() => subscribeProfilePosts(() => setProfilePosts(getProfilePosts())), []);
-  useEffect(() => { onOverlayChange?.(Boolean(story || messagesOpen)); }, [story, messagesOpen, onOverlayChange]);
+  useEffect(() => { onOverlayChange?.(Boolean(story || messagesOpen || composeOpen)); }, [story, messagesOpen, composeOpen, onOverlayChange]);
   const toggleStoryLike = (name: string) => setLikedStories(current => current.includes(name) ? current.filter(item => item !== name) : [...current, name]);
   const openStory = (item: typeof storyItems[number], returnToMessages = false, recipient: string | null = null) => { setStoryReplyText(""); setStoryReturn({ kind: returnToMessages ? "messages" : "community", recipient }); setStory(item); };
   const closeStory = () => { setStory(null); if (storyReturn.kind === "messages") { setMessagesOpen(true); setInitialMessageRecipient(storyReturn.recipient); } setStoryReturn({ kind: "community", recipient: null }); };
@@ -220,8 +243,34 @@ function CommunityPage({ onScroll, onOverlayChange }: PageProps) {
     setStory(null);
     setMessagesOpen(true);
   };
+  const publishPost = () => {
+    const text = postDraft.trim();
+    if (!text) return;
+    addProfilePost(text);
+    setPostDraft("");
+    setComposeOpen(false);
+  };
+  const posts = [
+    ...profilePosts.map(post => ({ ...post, initialComments: [] as string[] })),
+    ...communityPosts,
+  ];
+  const query = searchText.trim().toLowerCase();
+  const visiblePosts = posts.filter(post => !query || [post.name, post.handle, post.text].some(value => value.toLowerCase().includes(query)));
   const storyMotion = useRef(new Animated.Value(0)).current;
-  const storyPan = PanResponder.create({ onMoveShouldSetPanResponderCapture: (_, gesture) => Math.abs(gesture.dx) > 14 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.15, onPanResponderRelease: (_, gesture) => { if (gesture.dx <= -55) moveStory(1); else if (gesture.dx >= 55) moveStory(-1); }, onPanResponderTerminate: () => {} });
+  const moveStoryRef = useRef(moveStory);
+  moveStoryRef.current = moveStory;
+  const storyPan = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) => {
+      const size = dimensions.current;
+      const awayFromSystemEdges = gesture.x0 > 26 && gesture.x0 < size.width - 26;
+      const awayFromComposer = gesture.y0 < size.height - 112;
+      return awayFromSystemEdges && awayFromComposer && Math.abs(gesture.dx) > 14 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.15;
+    },
+    onPanResponderRelease: (_, gesture) => {
+      if (gesture.dx <= -55) moveStoryRef.current(1);
+      else if (gesture.dx >= 55) moveStoryRef.current(-1);
+    },
+  })).current;
   useEffect(() => {
     if (story) {
       storyMotion.setValue(0);
@@ -230,18 +279,16 @@ function CommunityPage({ onScroll, onOverlayChange }: PageProps) {
   }, [story, storyMotion]);
   return <View style={feedStyles.root}>
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={feedStyles.content} onScroll={onScroll} scrollEventThrottle={16}>
-      <View style={feedStyles.head}><Text style={feedStyles.title}>Feed</Text><View style={feedStyles.icons}><IconButton name="search-outline" /><Pressable onPress={() => { setInitialMessageRecipient(null); setMessagesOpen(true); }} style={feedStyles.messageButton}><Ionicons name="chatbubble-ellipses-outline" size={22} color={colors.ink} /><View style={feedStyles.messageDot}><Text style={feedStyles.messageDotText}>3</Text></View></Pressable></View></View>
+      <View style={feedStyles.head}><Text style={feedStyles.title}>Feed</Text><View style={feedStyles.icons}><IconButton name="search-outline" onPress={() => setSearchOpen(value => !value)} /><Pressable onPress={() => { setInitialMessageRecipient(null); setMessagesOpen(true); }} style={feedStyles.messageButton}><Ionicons name="chatbubble-ellipses-outline" size={22} color={colors.ink} /><View style={feedStyles.messageDot}><Text style={feedStyles.messageDotText}>3</Text></View></Pressable></View></View>
+      {searchOpen && <View style={feedStyles.communitySearchRow}><Ionicons name="search-outline" size={18} color={colors.muted} /><TextInput autoFocus value={searchText} onChangeText={setSearchText} placeholder="Search posts and people" placeholderTextColor={colors.muted} returnKeyType="search" style={feedStyles.communitySearchInput} /><Pressable onPress={() => { setSearchText(""); setSearchOpen(false); }} hitSlop={8} accessibilityLabel="Close search"><Ionicons name="close-circle" size={19} color={colors.muted} /></Pressable></View>}
       <View style={feedStyles.tabs}><Text style={[feedStyles.tab, feedStyles.active]}>For You</Text><Text style={feedStyles.tab}>Following</Text></View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={feedStyles.stories}>
         <Pressable onPress={() => openStory({ name: "Your story", image: "https://i.pravatar.cc/100?img=12", caption: "Share something with the community", likes: 0 })} style={({ pressed }) => [feedStyles.storyTile, feedStyles.createStory, pressed && feedStyles.pressed]}><View style={feedStyles.createStoryTop}><View style={feedStyles.createAvatar}><Ionicons name="person" size={30} color={colors.muted} /></View><View style={feedStyles.plus}><Ionicons name="add" size={21} color="#fff" /></View></View><Text style={feedStyles.createText}>Create story</Text></Pressable>
         {storyItems.map(item => <StoryTile key={item.name} story={item} onPress={() => openStory(item)} />)}
       </ScrollView>
-      <Pressable style={feedStyles.compose}><View style={feedStyles.avatar}><Ionicons name="person" size={17} color={colors.muted} /></View><Text style={feedStyles.placeholder}>What's happening in tech?</Text><Ionicons name="image-outline" size={20} color={colors.muted} /></Pressable>
-      <PostCard delay={80} name="Kwame Repairs" initialComments={["Could you show the meter reading?", "Thanks for sharing the diagnosis."]} handle="@kwamerepairs" text="Board repair today. Found a short on the power rail — sharing the diagnosis process for anyone learning microsoldering." image="https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&w=1000&q=85" />
-      <PostCard delay={180} name="K-Tech Mobile" initialComments={["Is the warranty valid across Ghana?", "That finish looks great."]} handle="@ktechmobile" text="Three clean iPhone 15 Pro units just arrived. Verified stock, 12-month warranty." image="https://images.unsplash.com/photo-1592286927505-2fd0b2b8b0a4?auto=format&fit=crop&w=1000&q=85" />
-      <PostCard delay={280} name="Ama’s Phone Clinic" initialComments={["What adhesive did you use?", "Clean repair—thanks for posting."]} handle="@amasphoneclinic" text="Before and after: a careful screen replacement on an iPhone 13. Small details make a repair feel brand new." image="https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?auto=format&fit=crop&w=1000&q=85" />
-      <PostCard delay={380} name="Fixora Learn" initialComments={["Can you share the full checklist?", "This fixed my charging issue."]} handle="@fixoralearn" text="Tutorial: three safe checks to try when your phone won’t charge. Save this one before you visit a repairer." image="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1000&q=85" />
-      <PostCard delay={480} name="Circuit Corner" initialComments={["Which microscope setup is this?", "Great close-up of the board."]} handle="@circuitcorner" text="A little patience, the right tools, and a clean workspace make difficult repairs feel possible." image="https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&w=1000&q=85" />
+      <Pressable onPress={() => setComposeOpen(true)} style={feedStyles.compose} accessibilityRole="button" accessibilityLabel="Create a community post"><View style={feedStyles.avatar}><Ionicons name="person" size={17} color={colors.muted} /></View><Text style={feedStyles.placeholder}>What's happening in tech?</Text><Ionicons name="create-outline" size={20} color={colors.muted} /></Pressable>
+      {visiblePosts.map((post, index) => <PostCard key={post.id} delay={Math.min(index, 5) * 80} name={post.name} handle={post.handle} text={post.text} image={post.image} initialComments={post.initialComments} />)}
+      {visiblePosts.length === 0 && <Text style={feedStyles.noSearchResults}>No posts or people match “{searchText.trim()}”.</Text>}
     </ScrollView>
     {story && <Animated.View {...storyPan.panHandlers} style={[feedStyles.storyViewer, { opacity: storyMotion, transform: [{ scale: storyMotion.interpolate({ inputRange: [0, 1], outputRange: [1.04, 1] }) }] }]}>
       <Image source={{ uri: story.image }} style={feedStyles.storyViewerImage} resizeMode="cover" />
@@ -249,11 +296,14 @@ function CommunityPage({ onScroll, onOverlayChange }: PageProps) {
       <Pressable onPress={() => moveStory(-1)} style={feedStyles.storyTapLeft} accessibilityLabel="Previous story" />
       <Pressable onPress={() => moveStory(1)} style={feedStyles.storyTapRight} accessibilityLabel="Next story" />
       <View style={feedStyles.storyProgress}>{storyItems.map((item, index) => <View key={item.name} style={feedStyles.storyProgressTrack}><View style={[feedStyles.storyProgressFill, index <= storyItems.findIndex(entry => entry.name === story.name) && feedStyles.storyProgressActive]} /></View>)}</View>
-      <View style={feedStyles.storyHeader}><Image source={{ uri: story.image }} style={feedStyles.storyHeaderAvatar} /><View style={feedStyles.storyHeaderCopy}><Text style={feedStyles.storyHeaderName}>{story.name}</Text><Text style={feedStyles.storyHeaderTime}>10h · Watch full reel</Text></View><Pressable onPress={closeStory} style={feedStyles.storyHeaderClose} hitSlop={8}><Ionicons name="close" size={24} color="#fff" /></Pressable></View>
+      <View style={feedStyles.storyHeader}><Pressable onPress={() => router.push({ pathname: "/profile/[id]", params: { id: profileRouteId(story.name) } } as never)} style={feedStyles.storyIdentity} accessibilityRole="button"><Image source={{ uri: story.image }} style={feedStyles.storyHeaderAvatar} /><View style={feedStyles.storyHeaderCopy}><Text style={feedStyles.storyHeaderName}>{story.name}</Text><Text style={feedStyles.storyHeaderTime}>10h · Watch full reel</Text></View></Pressable><Pressable onPress={closeStory} style={feedStyles.storyHeaderClose} hitSlop={8}><Ionicons name="close" size={24} color="#fff" /></Pressable></View>
       <View style={feedStyles.storyViewerCopy}><Text style={feedStyles.storyViewerCaption}>{story.caption}</Text></View>
-      <View style={feedStyles.storyReplyPanel}><TextInput value={storyReplyText} onChangeText={setStoryReplyText} onSubmitEditing={sendStoryReply} returnKeyType="send" placeholder="Send message" placeholderTextColor="rgba(255,255,255,.78)" style={feedStyles.storyReplyInput} /><Pressable onPress={() => toggleStoryLike(story.name)} style={feedStyles.storyViewerLike} accessibilityLabel={likedStories.includes(story.name) ? "Unlike story" : "Like story"}><Ionicons name={likedStories.includes(story.name) ? "heart" : "heart-outline"} size={28} color={likedStories.includes(story.name) ? "#ff5574" : "#fff"} /></Pressable><Pressable onPress={sendStoryReply} style={feedStyles.storySend} accessibilityLabel="Send story reply"><Ionicons name="paper-plane-outline" size={26} color="#fff" /></Pressable></View>
+      <KeyboardAvoidingView pointerEvents="box-none" style={feedStyles.storyComposerAvoider} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={0}><View style={feedStyles.storyReplyPanel}><TextInput value={storyReplyText} onChangeText={setStoryReplyText} onSubmitEditing={sendStoryReply} returnKeyType="send" placeholder="Send message" placeholderTextColor="rgba(255,255,255,.78)" style={feedStyles.storyReplyInput} /><Pressable onPress={() => toggleStoryLike(story.name)} style={feedStyles.storyViewerLike} accessibilityLabel={likedStories.includes(story.name) ? "Unlike story" : "Like story"}><Ionicons name={likedStories.includes(story.name) ? "heart" : "heart-outline"} size={28} color={likedStories.includes(story.name) ? "#ff5574" : "#fff"} /></Pressable><Pressable onPress={sendStoryReply} style={feedStyles.storySend} accessibilityLabel="Send story reply"><Ionicons name="paper-plane-outline" size={26} color="#fff" /></Pressable></View></KeyboardAvoidingView>
     </Animated.View>}
-    {messagesOpen && <MessagesPage onClose={() => { setMessagesOpen(false); setInitialMessageRecipient(null); }} onOpenStory={openStoryFromMessage} initialSelected={initialMessageRecipient} storyMessages={storyMessages} />}
+    {messagesOpen && <MessagesPage onClose={() => { setMessagesOpen(false); setInitialMessageRecipient(null); }} onOpenStory={openStoryFromMessage} onOpenProfile={id => router.push({ pathname: "/profile/[id]", params: { id } } as never)} initialSelected={initialMessageRecipient} storyMessages={storyMessages} />}
+    <Modal visible={composeOpen} transparent animationType="slide" onRequestClose={() => setComposeOpen(false)}>
+      <View style={feedStyles.composeModalRoot}><Pressable style={StyleSheet.absoluteFillObject} onPress={() => setComposeOpen(false)} /><KeyboardAvoidingView style={feedStyles.composeSheet} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={0}><View style={feedStyles.composeHeader}><Text style={feedStyles.composeTitle}>Create post</Text><Pressable onPress={() => setComposeOpen(false)} hitSlop={8} accessibilityLabel="Close post composer"><Ionicons name="close" size={22} color={colors.ink} /></Pressable></View><TextInput autoFocus multiline value={postDraft} onChangeText={setPostDraft} placeholder="Share something with the community..." placeholderTextColor={colors.muted} style={feedStyles.composeInput} textAlignVertical="top" /><View style={feedStyles.composeFooter}><Text style={feedStyles.composeHint}>Your post will appear in the community feed.</Text><Pressable onPress={publishPost} disabled={!postDraft.trim()} style={[feedStyles.composeButton, !postDraft.trim() && feedStyles.composeButtonDisabled]} accessibilityRole="button" accessibilityLabel="Publish post"><Text style={feedStyles.composeButtonText}>Post</Text></Pressable></View></KeyboardAvoidingView></View>
+    </Modal>
   </View>;
 }
 
@@ -302,6 +352,20 @@ const feedStyles = StyleSheet.create({
   compose: { height: 62, flexDirection: "row", alignItems: "center", gap: 10, borderBottomWidth: 1, borderTopWidth: 1, borderColor: colors.line },
   avatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" },
   placeholder: { flex: 1, color: colors.muted, fontSize: 14 },
+  communitySearchRow: { height: 46, borderRadius: 15, backgroundColor: colors.soft, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 13, marginTop: 10 },
+  communitySearchInput: { flex: 1, color: colors.ink, fontSize: 14 },
+  noSearchResults: { color: colors.muted, textAlign: "center", paddingVertical: 34, fontSize: 14 },
+  composeModalRoot: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,.42)" },
+  composeSheet: { minHeight: 300, maxHeight: "88%", backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 18, paddingTop: 17, paddingBottom: 18 },
+  composeHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.line },
+  composeTitle: { color: colors.ink, fontSize: 18, fontWeight: "800" },
+  composeInput: { minHeight: 150, maxHeight: 230, color: colors.ink, fontSize: 16, lineHeight: 23, paddingTop: 14 },
+  composeFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 12 },
+  composeHint: { flex: 1, color: colors.muted, fontSize: 11, marginRight: 10 },
+  composeButton: { minWidth: 78, height: 40, borderRadius: 20, backgroundColor: colors.blue, alignItems: "center", justifyContent: "center", paddingHorizontal: 15 },
+  composeButtonDisabled: { opacity: 0.42 },
+  composeButtonText: { color: "#fff", fontSize: 14, fontWeight: "800" },
+  storyComposerAvoider: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, justifyContent: "flex-end" },
   storyTapLeft: { position: "absolute", left: 0, width: "32%", top: 96, bottom: 106, zIndex: 5 },
   storyTapRight: { position: "absolute", right: 0, width: "32%", top: 96, bottom: 106, zIndex: 5 },
   storyProgress: { position: "absolute", top: 42, left: 9, right: 9, flexDirection: "row", gap: 4, zIndex: 7 },
@@ -309,12 +373,13 @@ const feedStyles = StyleSheet.create({
   storyProgressFill: { width: "0%", height: "100%", backgroundColor: "#fff" },
   storyProgressActive: { width: "100%" },
   storyHeader: { position: "absolute", top: 55, left: 15, right: 14, flexDirection: "row", alignItems: "center", gap: 9, zIndex: 7 },
+  storyIdentity: { flex: 1, flexDirection: "row", alignItems: "center", gap: 9 },
   storyHeaderAvatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 1.5, borderColor: "#fff" },
   storyHeaderCopy: { flex: 1 },
   storyHeaderName: { color: "#fff", fontSize: 14, fontWeight: "800" },
   storyHeaderTime: { color: "rgba(255,255,255,.82)", fontSize: 12, marginTop: 2 },
   storyHeaderClose: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
-  storyReplyPanel: { position: "absolute", left: 0, right: 0, bottom: 0, backgroundColor: "#090a0e", flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 13, paddingTop: 13, paddingBottom: 22 },
+  storyReplyPanel: { backgroundColor: "#090a0e", flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 13, paddingTop: 13, paddingBottom: 22 },
   storyViewerLike: { width: 34, height: 48, alignItems: "center", justifyContent: "center" },
   storyReplyInput: { flex: 1, height: 52, borderRadius: 27, backgroundColor: "#0d0f14", borderWidth: 1.2, borderColor: "rgba(255,255,255,.72)", paddingHorizontal: 18, color: "#fff", fontSize: 15 },
   storySend: { width: 34, height: 48, alignItems: "center", justifyContent: "center" },
@@ -331,6 +396,7 @@ const feedStyles = StyleSheet.create({
   storyViewerCaption: { color: "rgba(255,255,255,0.92)", fontSize: 15, fontWeight: "700", textShadowColor: "rgba(0,0,0,.5)", textShadowRadius: 5 },
   pressed: { opacity: 0.82 },
   messageOverlay: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, backgroundColor: colors.card, zIndex: 8, paddingHorizontal: 18, paddingTop: 8 },
+  messageKeyboard: { flex: 1 },
   messageHeader: { height: 60, flexDirection: "row", alignItems: "center", gap: 16, borderBottomWidth: 1, borderBottomColor: colors.line },
   messageTitleWrap: { flex: 1 },
   messageTitle: { color: colors.ink, fontSize: 22, fontWeight: "800" },
@@ -342,6 +408,7 @@ const feedStyles = StyleSheet.create({
   messageCopy: { flex: 1 },
   messageName: { color: colors.ink, fontSize: 15, fontWeight: "700" },
   messagePreview: { color: colors.muted, fontSize: 13, marginTop: 5 },
+  newMessageHint: { color: colors.muted, fontSize: 13, paddingVertical: 14 },
   messageMeta: { alignItems: "flex-end", gap: 6 },
   messageTime: { color: colors.muted, fontSize: 11 },
   unread: { minWidth: 20, height: 20, paddingHorizontal: 5, borderRadius: 10, backgroundColor: colors.blue, alignItems: "center", justifyContent: "center" },

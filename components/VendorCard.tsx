@@ -1,8 +1,8 @@
 import { Image, Pressable, Text, View, StyleSheet } from "react-native";
 import { colors, radius, spacing } from "../constants/theme";
 
-export function VendorCard({name, image, price, distance, rating}:{name:string;image:string;price:string;distance:string;rating:string}) {
- return <Pressable style={({pressed})=>[styles.card,pressed&&{transform:[{scale:.985}]}]}>
+export function VendorCard({name, image, price, distance, rating, onPress}:{name:string;image:string;price:string;distance:string;rating:string;onPress?:()=>void}) {
+  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={"View " + name + " profile"} style={({pressed})=>[styles.card,pressed&&{transform:[{scale:.985}]}]}>
    <Image source={{uri:image}} style={styles.image}/>
    <View style={styles.body}>
     <View style={styles.titleRow}><Text style={styles.name}>{name}</Text><View style={styles.badge}><Text style={styles.badgeText}>✓</Text></View></View>

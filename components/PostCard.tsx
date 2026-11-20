@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Animated, Image, Pressable, Text, TextInput, View, StyleSheet, Modal, ScrollView, KeyboardAvoidingView, Platform, PanResponder } from "react-native";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "expo-router";
 import { colors, radius } from "../constants/theme";
 
 const bubbleLayout = [
@@ -12,14 +13,29 @@ const bubbleLayout = [
 ];
 
 export function PostCard({ name, handle, text, image, likes = "42", comments = "13", delay = 0, initialComments = [] }: { name: string; handle: string; text: string; image: string; likes?: string; comments?: string; delay?: number; initialComments?: string[] }) {
+  const router = useRouter();
   const [liked, setLiked] = useState(false);
   const [reposted, setReposted] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [localComments, setLocalComments] = useState<string[]>(initialComments);
   const sheetDragY = useRef(new Animated.Value(0)).current;
-  const commentScrollY = useRef(0);
-  const sheetPan = useRef(PanResponder.create({ onMoveShouldSetPanResponderCapture: (_, gesture) => gesture.dy > 7 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.2 && commentScrollY.current <= 1, onPanResponderGrant: () => sheetDragY.setValue(0), onPanResponderMove: (_, gesture) => sheetDragY.setValue(Math.max(0, gesture.dy)), onPanResponderRelease: (_, gesture) => { if (gesture.dy > 115 || gesture.vy > 1.05) { Animated.timing(sheetDragY, { toValue: 650, duration: 170, useNativeDriver: true }).start(() => { setCommentsOpen(false); sheetDragY.setValue(0); }); } else { Animated.spring(sheetDragY, { toValue: 0, useNativeDriver: true, friction: 9, tension: 110 }).start(); } }, onPanResponderTerminate: () => Animated.spring(sheetDragY, { toValue: 0, useNativeDriver: true, friction: 9, tension: 110 }).start() })).current;
+  const sheetPan = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) => gesture.dy > 7 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.2,
+    onPanResponderGrant: () => sheetDragY.setValue(0),
+    onPanResponderMove: (_, gesture) => sheetDragY.setValue(Math.max(0, gesture.dy)),
+    onPanResponderRelease: (_, gesture) => {
+      if (gesture.dy > 115 || gesture.vy > 1.05) {
+        Animated.timing(sheetDragY, { toValue: 650, duration: 170, useNativeDriver: true }).start(() => {
+          setCommentsOpen(false);
+          sheetDragY.setValue(0);
+        });
+      } else {
+        Animated.spring(sheetDragY, { toValue: 0, useNativeDriver: true, friction: 9, tension: 110 }).start();
+      }
+    },
+    onPanResponderTerminate: () => Animated.spring(sheetDragY, { toValue: 0, useNativeDriver: true, friction: 9, tension: 110 }).start(),
+  })).current;
   useEffect(() => { if (commentsOpen) sheetDragY.setValue(0); }, [commentsOpen, sheetDragY]);
   const entry = useRef(new Animated.Value(0)).current;
   const likeScale = useRef(new Animated.Value(1)).current;
@@ -68,6 +84,10 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
     setLocalComments(current => [...current, value]);
     setCommentText("");
   };
+  const openProfile = () => {
+    const id = (handle || name).replace(/^@/, "").toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-|-$/g, "");
+    router.push({ pathname: "/profile/[id]", params: { id } } as never);
+  };
 
   return <Animated.View style={[styles.card, { opacity: entry, transform: [{ translateY: entry.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }] }]}>
     <View pointerEvents="none" style={styles.bubbles}>
@@ -81,7 +101,7 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
         ], opacity: value.interpolate({ inputRange: [0, 0.24, 0.76, 1], outputRange: [0, 1, 0.82, 0] }) }]}>♥</Animated.Text>;
       })}
     </View>
-    <View style={styles.head}><Image source={{ uri: "https://i.pravatar.cc/100?img=12" }} style={styles.avatar} /><View style={{ flex: 1 }}><View style={styles.nameRow}><Text style={styles.name}>{name}</Text><View style={styles.badge}><Text style={styles.badgeText}>✓</Text></View></View><Text style={styles.handle}>{handle} · 2h</Text></View><Ionicons name="ellipsis-horizontal" size={19} color={colors.muted} /></View>
+    <Pressable onPress={openProfile} accessibilityRole="button" accessibilityLabel={"View " + name + " profile"} style={styles.head}><Image source={{ uri: "https://i.pravatar.cc/100?img=12" }} style={styles.avatar} /><View style={{ flex: 1 }}><View style={styles.nameRow}><Text style={styles.name}>{name}</Text><View style={styles.badge}><Text style={styles.badgeText}>✓</Text></View></View><Text style={styles.handle}>{handle} · 2h</Text></View><Ionicons name="ellipsis-horizontal" size={19} color={colors.muted} /></Pressable>
     <Text style={styles.text}>{text}</Text>
     <Image source={{ uri: image }} style={styles.postImage} />
     <View style={styles.actions}>
@@ -94,11 +114,11 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
     <Modal visible={commentsOpen} transparent animationType="slide" onRequestClose={() => setCommentsOpen(false)}>
       <View style={styles.modalRoot}>
         <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCommentsOpen(false)} />
-        <KeyboardAvoidingView {...sheetPan.panHandlers} style={[styles.commentsSheet, { transform: [{ translateY: sheetDragY }] }]} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View style={styles.sheetHandle} />
+      <KeyboardAvoidingView style={[styles.commentsSheet, { transform: [{ translateY: sheetDragY }] }]} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={0}>
+          <View {...sheetPan.panHandlers} collapsable={false} style={styles.sheetHandleArea}><View style={styles.sheetHandle} /></View>
           <View style={styles.sheetHeader}><Text style={styles.sheetTitle}>Comments</Text><Pressable onPress={() => setCommentsOpen(false)} hitSlop={8}><Ionicons name="close" size={22} color={colors.ink} /></Pressable></View>
           <View style={styles.sortRow}><Text style={styles.sortText}>Most relevant</Text><Ionicons name="chevron-down" size={14} color={colors.muted} /></View>
-          <ScrollView style={styles.commentList} contentContainerStyle={styles.commentListContent} keyboardShouldPersistTaps="handled" scrollEventThrottle={16} onScroll={event => { commentScrollY.current = event.nativeEvent.contentOffset.y; }}>
+          <ScrollView style={styles.commentList} contentContainerStyle={styles.commentListContent} keyboardShouldPersistTaps="always">
             {localComments.length ? localComments.map((comment, index) => <View key={index} style={styles.commentEntry}><View style={styles.commentAvatar}><Ionicons name="person" size={15} color={colors.muted} /></View><View style={{ flex: 1 }}><View style={styles.commentBubble}><Text style={styles.commentAuthor}>Community member</Text><Text style={styles.commentCopy}>{comment}</Text></View><Text style={styles.commentMeta}>1h · Like · Reply</Text></View></View>) : <Text style={styles.emptyComments}>Be the first to comment.</Text>}
           </ScrollView>
           <View style={styles.commentComposer}><View style={styles.commentCurrentAvatar}><Ionicons name="person" size={16} color={colors.muted} /></View><TextInput value={commentText} onChangeText={setCommentText} onSubmitEditing={addComment} returnKeyType="send" placeholder="Write a comment..." placeholderTextColor={colors.muted} style={styles.commentInput} /><Pressable onPress={addComment} hitSlop={8} accessibilityLabel="Post comment"><Ionicons name="send" size={20} color={commentText.trim() ? colors.blue : colors.line} /></Pressable></View>
@@ -133,7 +153,8 @@ const styles = StyleSheet.create({
   viewCommentsText: { color: colors.muted, fontSize: 12, fontWeight: "600" },
   modalRoot: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,.48)" },
   commentsSheet: { height: "76%", maxHeight: "88%", backgroundColor: "#fff", borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 16, paddingTop: 9, paddingBottom: 18, overflow: "hidden" },
-  sheetHandle: { alignSelf: "center", width: 38, height: 4, borderRadius: 2, backgroundColor: "#d0d2d6", marginBottom: 10 },
+  sheetHandleArea: { minHeight: 24, alignItems: "center", justifyContent: "center", marginBottom: 7 },
+  sheetHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: "#d0d2d6" },
   sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: "#eceef1" },
   sheetTitle: { color: colors.ink, fontSize: 17, fontWeight: "800" },
   sortRow: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 10 },

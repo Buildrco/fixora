@@ -11,17 +11,18 @@ const bubbleLayout = [
   { left: 68, drift: -22, rise: 94, rotate: "-8deg" },
 ];
 
-export function PostCard({ name, handle, text, image, likes = "42", comments = "13", delay = 0 }: { name: string; handle: string; text: string; image: string; likes?: string; comments?: string; delay?: number }) {
+export function PostCard({ name, handle, text, image, likes = "42", comments = "13", delay = 0, initialComments = [] }: { name: string; handle: string; text: string; image: string; likes?: string; comments?: string; delay?: number; initialComments?: string[] }) {
   const [liked, setLiked] = useState(false);
   const [reposted, setReposted] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
-  const [localComments, setLocalComments] = useState<string[]>([]);
+  const [localComments, setLocalComments] = useState<string[]>(initialComments);
   const entry = useRef(new Animated.Value(0)).current;
   const likeScale = useRef(new Animated.Value(1)).current;
   const repostScale = useRef(new Animated.Value(1)).current;
   const commentScale = useRef(new Animated.Value(1)).current;
   const bubbleValues = useRef(bubbleLayout.map(() => new Animated.Value(0))).current;
+  const commentCount = Number(comments) + Math.max(0, localComments.length - initialComments.length);
 
   const toggleLike = () => {
     const next = !liked;
@@ -81,10 +82,11 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
     <Image source={{ uri: image }} style={styles.postImage} />
     <View style={styles.actions}>
       <Pressable onPress={toggleLike} hitSlop={8} style={styles.action}><Animated.View style={{ transform: [{ scale: likeScale }] }}><Ionicons name={liked ? "heart" : "heart-outline"} size={21} color={liked ? colors.accent : colors.muted} /></Animated.View><Text style={liked ? styles.activeText : styles.count}>{Number(likes) + (liked ? 1 : 0)}</Text></Pressable>
-      <Pressable onPress={toggleComments} hitSlop={8} style={[styles.action, commentsOpen && styles.commentAction]}><Animated.View style={{ transform: [{ scale: commentScale }] }}><Ionicons name={commentsOpen ? "chatbubble" : "chatbubble-outline"} size={20} color={commentsOpen ? colors.blue : colors.muted} /></Animated.View><Text style={commentsOpen ? styles.commentText : styles.count}>{Number(comments) + localComments.length}</Text></Pressable>
+      <Pressable onPress={toggleComments} hitSlop={8} accessibilityRole="button" accessibilityLabel={commentsOpen ? "Hide comments" : "View comments"} style={[styles.action, commentsOpen && styles.commentAction]}><Animated.View style={{ transform: [{ scale: commentScale }] }}><Ionicons name={commentsOpen ? "chatbubble" : "chatbubble-outline"} size={20} color={commentsOpen ? colors.blue : colors.muted} /></Animated.View><Text style={commentsOpen ? styles.commentText : styles.count}>{commentCount}</Text></Pressable>
       <Pressable onPress={toggleRepost} hitSlop={8} style={[styles.action, reposted && styles.repostAction]}><Animated.View style={{ transform: [{ scale: repostScale }] }}><Ionicons name="repeat-outline" size={21} color={reposted ? colors.green : colors.muted} /></Animated.View><Text style={reposted ? styles.repostText : styles.count}>{Number(8) + (reposted ? 1 : 0)}</Text></Pressable>
       <Pressable hitSlop={8} style={styles.action}><Ionicons name="share-outline" size={20} color={colors.muted} /></Pressable>
     </View>
+    {!commentsOpen && <Pressable onPress={toggleComments} style={styles.viewComments}><Text style={styles.viewCommentsText}>{commentCount} comments · View</Text><Ionicons name="chevron-down" size={14} color={colors.muted} /></Pressable>}
     {commentsOpen && <View style={styles.commentPanel}>
       {localComments.map((comment, index) => <View key={index} style={styles.commentRow}><View style={styles.commentAvatar}><Ionicons name="person" size={13} color={colors.muted} /></View><Text style={styles.commentCopy}>{comment}</Text></View>)}
       <View style={styles.commentComposer}><TextInput value={commentText} onChangeText={setCommentText} onSubmitEditing={addComment} returnKeyType="send" placeholder="Write a comment..." placeholderTextColor={colors.muted} style={styles.commentInput} /><Pressable onPress={addComment} hitSlop={8}><Ionicons name="arrow-up-circle" size={27} color={commentText.trim() ? colors.blue : colors.line} /></Pressable></View>
@@ -113,6 +115,8 @@ const styles = StyleSheet.create({
   repostAction: { backgroundColor: "#eaf8f1" },
   activeText: { color: colors.accent, fontWeight: "700", fontSize: 13 },
   repostText: { color: colors.green, fontWeight: "700", fontSize: 13 },
+  viewComments: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4, paddingVertical: 5 },
+  viewCommentsText: { color: colors.muted, fontSize: 12, fontWeight: "600" },
   commentPanel: { marginTop: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.line },
   commentRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
   commentAvatar: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" },

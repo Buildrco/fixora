@@ -155,46 +155,72 @@ function RepairPage({ onScroll }: PageProps) {
 }
 
 const storyItems = [
-  { name: "Lilian Ama", image: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=500&q=85", caption: "New week, fresh repairs ✨" },
-  { name: "Abraham K.", image: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=500&q=85", caption: "Behind the bench today" },
-  { name: "Diana Addo", image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=500&q=85", caption: "Learning never stops" },
-  { name: "Kofi Mensah", image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=500&q=85", caption: "A clean board is a happy board" },
+  { name: "Lilian Ama", image: "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=500&q=85", caption: "New week, fresh repairs ✨", likes: 28 },
+  { name: "Abraham K.", image: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=500&q=85", caption: "Behind the bench today", likes: 16 },
+  { name: "Diana Addo", image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=500&q=85", caption: "Learning never stops", likes: 34 },
+  { name: "Kofi Mensah", image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=500&q=85", caption: "A clean board is a happy board", likes: 12 },
 ];
 
-function StoryTile({ story, onPress }: { story: typeof storyItems[number]; onPress: () => void }) {
-  return <Pressable onPress={onPress} style={({ pressed }) => [feedStyles.storyTile, pressed && feedStyles.pressed]}>
-    <Image source={{ uri: story.image }} style={feedStyles.storyImage} />
-    <View style={feedStyles.storyShade} />
-    <View style={feedStyles.storyRing}><Image source={{ uri: story.image }} style={feedStyles.storyAvatar} /></View>
-    <Text style={feedStyles.storyName} numberOfLines={2}>{story.name}</Text>
-  </Pressable>;
-}
+type StoryMessage = { id: string; recipient: string; storyAuthor: string; storyCaption: string; storyImage: string; text: string };
 
-function MessagesPage({ onClose }: { onClose: () => void }) {
+function StoryTile({ story, onPress, onReply, onLike, liked }: { story: typeof storyItems[number]; onPress: () => void; onReply: () => void; onLike: () => void; liked: boolean }) {
+  return <View style={feedStyles.storyTile}>
+    <Pressable onPress={onPress} style={StyleSheet.absoluteFillObject}>
+      <Image source={{ uri: story.image }} style={feedStyles.storyImage} />
+      <View style={feedStyles.storyShade} />
+      <View style={feedStyles.storyRing}><Image source={{ uri: story.image }} style={feedStyles.storyAvatar} /></View>
+      <Text style={feedStyles.storyName} numberOfLines={2}>{story.name}</Text>
+    </Pressable>
+    <View style={feedStyles.storyActions}>
+      <Pressable onPress={onReply} style={feedStyles.storyActionButton} accessibilityLabel="Reply to story"><Ionicons name="chatbubble-outline" size={13} color="#fff" /></Pressable>
+      <Pressable onPress={onLike} style={[feedStyles.storyActionButton, liked && feedStyles.storyActionActive]} accessibilityLabel={liked ? "Unlike story" : "Like story"}><Ionicons name={liked ? "heart" : "heart-outline"} size={13} color={liked ? "#ff5574" : "#fff"} /><Text style={feedStyles.storyActionCount}>{story.likes + (liked ? 1 : 0)}</Text></Pressable>
+    </View>
+  </View>;
+}
+function MessagesPage({ onClose, initialSelected, storyMessages }: { onClose: () => void; initialSelected: string | null; storyMessages: StoryMessage[] }) {
   const slide = useRef(new Animated.Value(1)).current;
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(initialSelected);
   const [draft, setDraft] = useState("");
-  const [sent, setSent] = useState<string[]>([]);
-  const conversations = [
+  const [sent, setSent] = useState<{ recipient: string; text: string }[]>([]);
+  const baseConversations = [
     { name: "K-Tech Mobile", preview: "The replacement screen is ready.", time: "9m", image: "https://i.pravatar.cc/100?img=12", unread: 2 },
     { name: "Ama’s Phone Clinic", preview: "Thanks for the repair notes!", time: "1h", image: "https://i.pravatar.cc/100?img=32", unread: 0 },
     { name: "Fixora Learn", preview: "New tutorial drops tomorrow.", time: "3h", image: "https://i.pravatar.cc/100?img=47", unread: 1 },
   ];
+  const storyConversations = Array.from(new Set(storyMessages.map(message => message.recipient))).map(name => {
+    const latest = [...storyMessages].reverse().find(message => message.recipient === name)!;
+    return { name, preview: "Story reply: " + latest.text, time: "now", image: latest.storyImage, unread: 1 };
+  });
+  const conversations = [...storyConversations, ...baseConversations.filter(item => !storyConversations.some(story => story.name === item.name))];
   const active = conversations.find(item => item.name === selected);
   useEffect(() => { Animated.timing(slide, { toValue: 0, duration: 520, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(); }, [slide]);
-  const sendMessage = () => { if (!draft.trim()) return; setSent(current => [...current, draft.trim()]); setDraft(""); };
+  const sendMessage = () => { if (!draft.trim() || !selected) return; setSent(current => [...current, { recipient: selected, text: draft.trim() }]); setDraft(""); };
   return <Animated.View style={[feedStyles.messageOverlay, { opacity: slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), transform: [{ translateX: slide.interpolate({ inputRange: [0, 1], outputRange: [0, 420] }) }, { scale: slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0.98] }) }] }]}>
     <View style={feedStyles.messageHeader}><Pressable onPress={selected ? () => setSelected(null) : onClose} hitSlop={10}><Ionicons name="arrow-back" size={23} color={colors.ink} /></Pressable><View style={feedStyles.messageTitleWrap}><Text style={feedStyles.messageTitle}>{selected || "Messages"}</Text>{selected && <Text style={feedStyles.messageSubtitle}>Active now</Text>}</View>{!selected && <Pressable style={feedStyles.newMessageButton} hitSlop={8}><Ionicons name="create-outline" size={21} color={colors.ink} /></Pressable>}</View>
-    {!selected ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={feedStyles.messageList}>{conversations.map(item => <Pressable key={item.name} onPress={() => setSelected(item.name)} style={({ pressed }) => [feedStyles.messageRow, pressed && feedStyles.pressed]}><Image source={{ uri: item.image }} style={feedStyles.messageAvatar} /><View style={feedStyles.messageCopy}><Text style={feedStyles.messageName}>{item.name}</Text><Text style={feedStyles.messagePreview} numberOfLines={1}>{item.preview}</Text></View><View style={feedStyles.messageMeta}><Text style={feedStyles.messageTime}>{item.time}</Text>{item.unread > 0 && <View style={feedStyles.unread}><Text style={feedStyles.unreadText}>{item.unread}</Text></View>}</View></Pressable>)}</ScrollView> : <View style={feedStyles.chatBody}><View style={feedStyles.chatIntro}><Image source={{ uri: active?.image }} style={feedStyles.chatAvatar} /><Text style={feedStyles.chatName}>{active?.name}</Text><Text style={feedStyles.chatIntroText}>This is the beginning of your conversation.</Text></View><View style={feedStyles.sentMessages}>{sent.map((message, index) => <View key={index} style={feedStyles.sentBubble}><Text style={feedStyles.sentText}>{message}</Text></View>)}</View><View style={feedStyles.chatComposer}><TextInput value={draft} onChangeText={setDraft} onSubmitEditing={sendMessage} returnKeyType="send" placeholder="Message..." placeholderTextColor={colors.muted} style={feedStyles.messageInput} /><Pressable onPress={sendMessage} hitSlop={8}><Ionicons name="arrow-up-circle" size={30} color={draft.trim() ? colors.blue : colors.line} /></Pressable></View></View>}
+    {!selected ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={feedStyles.messageList}>{conversations.map(item => <Pressable key={item.name} onPress={() => setSelected(item.name)} style={({ pressed }) => [feedStyles.messageRow, pressed && feedStyles.pressed]}><Image source={{ uri: item.image }} style={feedStyles.messageAvatar} /><View style={feedStyles.messageCopy}><Text style={feedStyles.messageName}>{item.name}</Text><Text style={feedStyles.messagePreview} numberOfLines={1}>{item.preview}</Text></View><View style={feedStyles.messageMeta}><Text style={feedStyles.messageTime}>{item.time}</Text>{item.unread > 0 && <View style={feedStyles.unread}><Text style={feedStyles.unreadText}>{item.unread}</Text></View>}</View></Pressable>)}</ScrollView> : <View style={feedStyles.chatBody}><View style={feedStyles.chatIntro}><Image source={{ uri: active?.image }} style={feedStyles.chatAvatar} /><Text style={feedStyles.chatName}>{active?.name}</Text><Text style={feedStyles.chatIntroText}>This is the beginning of your conversation.</Text></View><View style={feedStyles.sentMessages}>{storyMessages.filter(message => message.recipient === selected).map(message => <View key={message.id} style={feedStyles.storyReplyBubble}><View style={feedStyles.storyReplyContext}><Image source={{ uri: message.storyImage }} style={feedStyles.storyReplyContextImage} /><View style={{ flex: 1 }}><Text style={feedStyles.storyReplyLabel}>Replied to {message.storyAuthor}’s story</Text><Text numberOfLines={1} style={feedStyles.storyReplyCaption}>{message.storyCaption}</Text></View></View><Text style={feedStyles.sentText}>{message.text}</Text></View>)}{sent.filter(message => message.recipient === selected).map((message, index) => <View key={index} style={feedStyles.sentBubble}><Text style={feedStyles.sentText}>{message.text}</Text></View>)}</View><View style={feedStyles.chatComposer}><TextInput value={draft} onChangeText={setDraft} onSubmitEditing={sendMessage} returnKeyType="send" placeholder="Message..." placeholderTextColor={colors.muted} style={feedStyles.messageInput} /><Pressable onPress={sendMessage} hitSlop={8}><Ionicons name="arrow-up-circle" size={30} color={draft.trim() ? colors.blue : colors.line} /></Pressable></View></View>}
   </Animated.View>;
 }
-
 function CommunityPage({ onScroll, onOverlayChange }: PageProps) {
   const [story, setStory] = useState<typeof storyItems[number] | null>(null);
   const [profilePosts, setProfilePosts] = useState(getProfilePosts());
   const [messagesOpen, setMessagesOpen] = useState(false);
+  const [storyMessages, setStoryMessages] = useState<StoryMessage[]>([]);
+  const [storyReplyText, setStoryReplyText] = useState("");
+  const [likedStories, setLikedStories] = useState<string[]>([]);
+  const [initialMessageRecipient, setInitialMessageRecipient] = useState<string | null>(null);
   useEffect(() => subscribeProfilePosts(() => setProfilePosts(getProfilePosts())), []);
   useEffect(() => { onOverlayChange?.(Boolean(story || messagesOpen)); }, [story, messagesOpen, onOverlayChange]);
+  const toggleStoryLike = (name: string) => setLikedStories(current => current.includes(name) ? current.filter(item => item !== name) : [...current, name]);
+  const openStory = (item: typeof storyItems[number]) => { setStoryReplyText(""); setStory(item); };
+  const sendStoryReply = () => {
+    const text = storyReplyText.trim();
+    if (!text || !story) return;
+    setStoryMessages(current => [...current, { id: String(Date.now()), recipient: story.name, storyAuthor: story.name, storyCaption: story.caption, storyImage: story.image, text }]);
+    setInitialMessageRecipient(story.name);
+    setStoryReplyText("");
+    setStory(null);
+    setMessagesOpen(true);
+  };
   const storyMotion = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (story) {
@@ -204,21 +230,21 @@ function CommunityPage({ onScroll, onOverlayChange }: PageProps) {
   }, [story, storyMotion]);
   return <View style={feedStyles.root}>
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={feedStyles.content} onScroll={onScroll} scrollEventThrottle={16}>
-      <View style={feedStyles.head}><Text style={feedStyles.title}>Feed</Text><View style={feedStyles.icons}><IconButton name="search-outline" /><Pressable onPress={() => setMessagesOpen(true)} style={feedStyles.messageButton}><Ionicons name="chatbubble-ellipses-outline" size={22} color={colors.ink} /><View style={feedStyles.messageDot}><Text style={feedStyles.messageDotText}>3</Text></View></Pressable></View></View>
+      <View style={feedStyles.head}><Text style={feedStyles.title}>Feed</Text><View style={feedStyles.icons}><IconButton name="search-outline" /><Pressable onPress={() => { setInitialMessageRecipient(null); setMessagesOpen(true); }} style={feedStyles.messageButton}><Ionicons name="chatbubble-ellipses-outline" size={22} color={colors.ink} /><View style={feedStyles.messageDot}><Text style={feedStyles.messageDotText}>3</Text></View></Pressable></View></View>
       <View style={feedStyles.tabs}><Text style={[feedStyles.tab, feedStyles.active]}>For You</Text><Text style={feedStyles.tab}>Following</Text></View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={feedStyles.stories}>
-        <Pressable onPress={() => setStory({ name: "Your story", image: "https://i.pravatar.cc/100?img=12", caption: "Share something with the community" })} style={({ pressed }) => [feedStyles.storyTile, feedStyles.createStory, pressed && feedStyles.pressed]}><View style={feedStyles.createStoryTop}><View style={feedStyles.createAvatar}><Ionicons name="person" size={30} color={colors.muted} /></View><View style={feedStyles.plus}><Ionicons name="add" size={21} color="#fff" /></View></View><Text style={feedStyles.createText}>Create story</Text></Pressable>
-        {storyItems.map(item => <StoryTile key={item.name} story={item} onPress={() => setStory(item)} />)}
+        <Pressable onPress={() => openStory({ name: "Your story", image: "https://i.pravatar.cc/100?img=12", caption: "Share something with the community", likes: 0 })} style={({ pressed }) => [feedStyles.storyTile, feedStyles.createStory, pressed && feedStyles.pressed]}><View style={feedStyles.createStoryTop}><View style={feedStyles.createAvatar}><Ionicons name="person" size={30} color={colors.muted} /></View><View style={feedStyles.plus}><Ionicons name="add" size={21} color="#fff" /></View></View><Text style={feedStyles.createText}>Create story</Text></Pressable>
+        {storyItems.map(item => <StoryTile key={item.name} story={item} liked={likedStories.includes(item.name)} onPress={() => openStory(item)} onReply={() => openStory(item)} onLike={() => toggleStoryLike(item.name)} />)}
       </ScrollView>
       <Pressable style={feedStyles.compose}><View style={feedStyles.avatar}><Ionicons name="person" size={17} color={colors.muted} /></View><Text style={feedStyles.placeholder}>What's happening in tech?</Text><Ionicons name="image-outline" size={20} color={colors.muted} /></Pressable>
-      <PostCard delay={80} name="Kwame Repairs" handle="@kwamerepairs" text="Board repair today. Found a short on the power rail — sharing the diagnosis process for anyone learning microsoldering." image="https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&w=1000&q=85" />
-      <PostCard delay={180} name="K-Tech Mobile" handle="@ktechmobile" text="Three clean iPhone 15 Pro units just arrived. Verified stock, 12-month warranty." image="https://images.unsplash.com/photo-1592286927505-2fd0b2b8b0a4?auto=format&fit=crop&w=1000&q=85" />
-      <PostCard delay={280} name="Ama’s Phone Clinic" handle="@amasphoneclinic" text="Before and after: a careful screen replacement on an iPhone 13. Small details make a repair feel brand new." image="https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?auto=format&fit=crop&w=1000&q=85" />
-      <PostCard delay={380} name="Fixora Learn" handle="@fixoralearn" text="Tutorial: three safe checks to try when your phone won’t charge. Save this one before you visit a repairer." image="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1000&q=85" />
-      <PostCard delay={480} name="Circuit Corner" handle="@circuitcorner" text="A little patience, the right tools, and a clean workspace make difficult repairs feel possible." image="https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&w=1000&q=85" />
+      <PostCard delay={80} name="Kwame Repairs" initialComments={["Could you show the meter reading?", "Thanks for sharing the diagnosis."]} handle="@kwamerepairs" text="Board repair today. Found a short on the power rail — sharing the diagnosis process for anyone learning microsoldering." image="https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&w=1000&q=85" />
+      <PostCard delay={180} name="K-Tech Mobile" initialComments={["Is the warranty valid across Ghana?", "That finish looks great."]} handle="@ktechmobile" text="Three clean iPhone 15 Pro units just arrived. Verified stock, 12-month warranty." image="https://images.unsplash.com/photo-1592286927505-2fd0b2b8b0a4?auto=format&fit=crop&w=1000&q=85" />
+      <PostCard delay={280} name="Ama’s Phone Clinic" initialComments={["What adhesive did you use?", "Clean repair—thanks for posting."]} handle="@amasphoneclinic" text="Before and after: a careful screen replacement on an iPhone 13. Small details make a repair feel brand new." image="https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?auto=format&fit=crop&w=1000&q=85" />
+      <PostCard delay={380} name="Fixora Learn" initialComments={["Can you share the full checklist?", "This fixed my charging issue."]} handle="@fixoralearn" text="Tutorial: three safe checks to try when your phone won’t charge. Save this one before you visit a repairer." image="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1000&q=85" />
+      <PostCard delay={480} name="Circuit Corner" initialComments={["Which microscope setup is this?", "Great close-up of the board."]} handle="@circuitcorner" text="A little patience, the right tools, and a clean workspace make difficult repairs feel possible." image="https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&w=1000&q=85" />
     </ScrollView>
-    {story && <Animated.View style={[feedStyles.storyViewer, { opacity: storyMotion, transform: [{ scale: storyMotion.interpolate({ inputRange: [0, 1], outputRange: [1.04, 1] }) }] }]}><Image source={{ uri: story.image }} style={feedStyles.storyViewerImage} /><View style={feedStyles.storyViewerShade} /><Pressable onPress={() => setStory(null)} style={feedStyles.storyClose} hitSlop={8}><Ionicons name="close" size={25} color="#fff" /></Pressable><View style={feedStyles.storyViewerCopy}><Text style={feedStyles.storyViewerName}>{story.name}</Text><Text style={feedStyles.storyViewerCaption}>{story.caption}</Text></View></Animated.View>}
-    {messagesOpen && <MessagesPage onClose={() => setMessagesOpen(false)} />}
+    {story && <Animated.View style={[feedStyles.storyViewer, { opacity: storyMotion, transform: [{ scale: storyMotion.interpolate({ inputRange: [0, 1], outputRange: [1.04, 1] }) }] }]}><Image source={{ uri: story.image }} style={feedStyles.storyViewerImage} /><View style={feedStyles.storyViewerShade} /><Pressable onPress={() => setStory(null)} style={feedStyles.storyClose} hitSlop={8}><Ionicons name="close" size={25} color="#fff" /></Pressable><View style={feedStyles.storyViewerCopy}><Text style={feedStyles.storyViewerName}>{story.name}</Text><Text style={feedStyles.storyViewerCaption}>{story.caption}</Text></View><View style={feedStyles.storyReplyPanel}><Pressable onPress={() => toggleStoryLike(story.name)} style={feedStyles.storyViewerLike}><Ionicons name={likedStories.includes(story.name) ? "heart" : "heart-outline"} size={17} color={likedStories.includes(story.name) ? colors.accent : colors.ink} /><Text style={feedStyles.storyViewerLikeText}>{story.likes + (likedStories.includes(story.name) ? 1 : 0)} likes</Text></Pressable><View style={feedStyles.storyReplyRow}><TextInput value={storyReplyText} onChangeText={setStoryReplyText} onSubmitEditing={sendStoryReply} returnKeyType="send" placeholder={"Reply to " + story.name + "’s story..."} placeholderTextColor={colors.muted} style={feedStyles.storyReplyInput} /><Pressable onPress={sendStoryReply} style={feedStyles.storySend} accessibilityLabel="Send story reply"><Ionicons name="send" size={17} color="#fff" /></Pressable></View></View></Animated.View>}
+    {messagesOpen && <MessagesPage onClose={() => { setMessagesOpen(false); setInitialMessageRecipient(null); }} initialSelected={initialMessageRecipient} storyMessages={storyMessages} />}
   </View>;
 }
 
@@ -267,11 +293,26 @@ const feedStyles = StyleSheet.create({
   compose: { height: 62, flexDirection: "row", alignItems: "center", gap: 10, borderBottomWidth: 1, borderTopWidth: 1, borderColor: colors.line },
   avatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" },
   placeholder: { flex: 1, color: colors.muted, fontSize: 14 },
+  storyActions: { position: "absolute", left: 5, right: 5, bottom: 6, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  storyActionButton: { minWidth: 28, height: 24, paddingHorizontal: 5, borderRadius: 12, backgroundColor: "rgba(0,0,0,.58)", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3 },
+  storyActionActive: { backgroundColor: "rgba(255,255,255,.92)" },
+  storyActionCount: { color: "#fff", fontSize: 10, fontWeight: "700" },
+  storyReplyPanel: { position: "absolute", left: 16, right: 16, bottom: 24, backgroundColor: "rgba(255,255,255,.96)", borderRadius: 18, padding: 10, gap: 8 },
+  storyViewerLike: { alignSelf: "flex-end", flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4 },
+  storyViewerLikeText: { color: colors.ink, fontSize: 12, fontWeight: "700" },
+  storyReplyRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  storyReplyInput: { flex: 1, height: 42, borderRadius: 21, backgroundColor: colors.soft, paddingHorizontal: 14, color: colors.ink, fontSize: 13 },
+  storySend: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.blue, alignItems: "center", justifyContent: "center" },
+  storyReplyBubble: { alignSelf: "flex-end", maxWidth: "94%", backgroundColor: "#eef5ff", borderRadius: 14, padding: 10, marginBottom: 8 },
+  storyReplyContext: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 7 },
+  storyReplyContextImage: { width: 34, height: 34, borderRadius: 8 },
+  storyReplyLabel: { color: colors.blue, fontSize: 11, fontWeight: "800" },
+  storyReplyCaption: { color: colors.muted, fontSize: 10, marginTop: 2 },
   storyViewer: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, backgroundColor: "#101114", zIndex: 5 },
   storyViewerImage: { width: "100%", height: "100%" },
   storyViewerShade: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.28)" },
   storyClose: { position: "absolute", top: 20, right: 18, width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(0,0,0,0.35)", alignItems: "center", justifyContent: "center" },
-  storyViewerCopy: { position: "absolute", left: 22, right: 22, bottom: 50 },
+  storyViewerCopy: { position: "absolute", left: 22, right: 22, bottom: 132 },
   storyViewerName: { color: "#fff", fontSize: 24, fontWeight: "800" },
   storyViewerCaption: { color: "rgba(255,255,255,0.88)", fontSize: 15, marginTop: 6 },
   pressed: { opacity: 0.82 },

@@ -18,6 +18,9 @@ jobs:
         with:
           node-version: 22
 
+      - name: Update npm for install stability
+        run: npm install --global npm@12.2.3 --no-audit --no-fund
+
       - name: Install dependencies
         run: npm ci --legacy-peer-deps --no-audit --no-fund
 

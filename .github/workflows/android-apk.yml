@@ -4,6 +4,9 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths-ignore:
+      - '.github/workflows/eas-update.yml'
+      - '.github/workflows/android-apk.yml'
 
 concurrency:
   group: fixora-android-apk-main

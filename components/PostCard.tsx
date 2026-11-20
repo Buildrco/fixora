@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Animated, Image, Pressable, Text, TextInput, View, StyleSheet } from "react-native";
+import { Animated, Image, Pressable, Text, TextInput, View, StyleSheet, Modal, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { useEffect, useRef, useState } from "react";
 import { colors, radius } from "../constants/theme";
 
@@ -87,10 +87,20 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
       <Pressable hitSlop={8} style={styles.action}><Ionicons name="share-outline" size={20} color={colors.muted} /></Pressable>
     </View>
     {!commentsOpen && <Pressable onPress={toggleComments} style={styles.viewComments}><Text style={styles.viewCommentsText}>{commentCount} comments · View</Text><Ionicons name="chevron-down" size={14} color={colors.muted} /></Pressable>}
-    {commentsOpen && <View style={styles.commentPanel}>
-      {localComments.map((comment, index) => <View key={index} style={styles.commentRow}><View style={styles.commentAvatar}><Ionicons name="person" size={13} color={colors.muted} /></View><Text style={styles.commentCopy}>{comment}</Text></View>)}
-      <View style={styles.commentComposer}><TextInput value={commentText} onChangeText={setCommentText} onSubmitEditing={addComment} returnKeyType="send" placeholder="Write a comment..." placeholderTextColor={colors.muted} style={styles.commentInput} /><Pressable onPress={addComment} hitSlop={8}><Ionicons name="arrow-up-circle" size={27} color={commentText.trim() ? colors.blue : colors.line} /></Pressable></View>
-    </View>}
+    <Modal visible={commentsOpen} transparent animationType="slide" onRequestClose={() => setCommentsOpen(false)}>
+      <View style={styles.modalRoot}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCommentsOpen(false)} />
+        <KeyboardAvoidingView style={styles.commentsSheet} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.sheetHeader}><Text style={styles.sheetTitle}>Comments</Text><Pressable onPress={() => setCommentsOpen(false)} hitSlop={8}><Ionicons name="close" size={22} color={colors.ink} /></Pressable></View>
+          <View style={styles.sortRow}><Text style={styles.sortText}>Most relevant</Text><Ionicons name="chevron-down" size={14} color={colors.muted} /></View>
+          <ScrollView style={styles.commentList} contentContainerStyle={styles.commentListContent} keyboardShouldPersistTaps="handled">
+            {localComments.length ? localComments.map((comment, index) => <View key={index} style={styles.commentEntry}><View style={styles.commentAvatar}><Ionicons name="person" size={15} color={colors.muted} /></View><View style={{ flex: 1 }}><View style={styles.commentBubble}><Text style={styles.commentAuthor}>Community member</Text><Text style={styles.commentCopy}>{comment}</Text></View><Text style={styles.commentMeta}>1h · Like · Reply</Text></View></View>) : <Text style={styles.emptyComments}>Be the first to comment.</Text>}
+          </ScrollView>
+          <View style={styles.commentComposer}><View style={styles.commentCurrentAvatar}><Ionicons name="person" size={16} color={colors.muted} /></View><TextInput value={commentText} onChangeText={setCommentText} onSubmitEditing={addComment} returnKeyType="send" placeholder="Write a comment..." placeholderTextColor={colors.muted} style={styles.commentInput} /><Pressable onPress={addComment} hitSlop={8} accessibilityLabel="Post comment"><Ionicons name="send" size={20} color={commentText.trim() ? colors.blue : colors.line} /></Pressable></View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
   </Animated.View>;
 }
 
@@ -117,10 +127,23 @@ const styles = StyleSheet.create({
   repostText: { color: colors.green, fontWeight: "700", fontSize: 13 },
   viewComments: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4, paddingVertical: 5 },
   viewCommentsText: { color: colors.muted, fontSize: 12, fontWeight: "600" },
-  commentPanel: { marginTop: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.line },
-  commentRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
-  commentAvatar: { width: 26, height: 26, borderRadius: 13, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" },
-  commentCopy: { flex: 1, color: colors.ink, fontSize: 13 },
-  commentComposer: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 3 },
-  commentInput: { flex: 1, height: 38, borderRadius: 19, backgroundColor: colors.soft, paddingHorizontal: 14, color: colors.ink, fontSize: 13 },
+  modalRoot: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,.48)" },
+  commentsSheet: { height: "76%", maxHeight: "88%", backgroundColor: "#fff", borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 16, paddingTop: 9, paddingBottom: 18, overflow: "hidden" },
+  sheetHandle: { alignSelf: "center", width: 38, height: 4, borderRadius: 2, backgroundColor: "#d0d2d6", marginBottom: 10 },
+  sheetHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: "#eceef1" },
+  sheetTitle: { color: colors.ink, fontSize: 17, fontWeight: "800" },
+  sortRow: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 10 },
+  sortText: { color: colors.muted, fontSize: 12, fontWeight: "700" },
+  commentList: { flex: 1, marginHorizontal: -16 },
+  commentListContent: { paddingHorizontal: 16, paddingVertical: 12 },
+  commentEntry: { flexDirection: "row", alignItems: "flex-start", gap: 9, marginBottom: 14 },
+  commentAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" },
+  commentBubble: { alignSelf: "flex-start", maxWidth: "100%", backgroundColor: "#f0f2f5", borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8 },
+  commentAuthor: { color: colors.ink, fontSize: 12, fontWeight: "800", marginBottom: 2 },
+  commentCopy: { color: colors.ink, fontSize: 14, lineHeight: 19 },
+  commentMeta: { color: colors.muted, fontSize: 11, marginTop: 4, marginLeft: 10 },
+  emptyComments: { color: colors.muted, textAlign: "center", paddingTop: 30, fontSize: 14 },
+  commentComposer: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#eceef1" },
+  commentCurrentAvatar: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" },
+  commentInput: { flex: 1, height: 40, borderRadius: 20, backgroundColor: "#f0f2f5", paddingHorizontal: 14, color: colors.ink, fontSize: 13 },
 });

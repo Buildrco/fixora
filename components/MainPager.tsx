@@ -163,20 +163,15 @@ const storyItems = [
 
 type StoryMessage = { id: string; recipient: string; storyAuthor: string; storyCaption: string; storyImage: string; text: string };
 
-function StoryTile({ story, onPress, onReply, onLike, liked }: { story: typeof storyItems[number]; onPress: () => void; onReply: () => void; onLike: () => void; liked: boolean }) {
-  return <View style={feedStyles.storyTile}>
-    <Pressable onPress={onPress} style={StyleSheet.absoluteFillObject}>
-      <Image source={{ uri: story.image }} style={feedStyles.storyImage} />
-      <View style={feedStyles.storyShade} />
-      <View style={feedStyles.storyRing}><Image source={{ uri: story.image }} style={feedStyles.storyAvatar} /></View>
-      <Text style={feedStyles.storyName} numberOfLines={2}>{story.name}</Text>
-    </Pressable>
-    <View style={feedStyles.storyActions}>
-      <Pressable onPress={onReply} style={feedStyles.storyActionButton} accessibilityLabel="Reply to story"><Ionicons name="chatbubble-outline" size={13} color="#fff" /></Pressable>
-      <Pressable onPress={onLike} style={[feedStyles.storyActionButton, liked && feedStyles.storyActionActive]} accessibilityLabel={liked ? "Unlike story" : "Like story"}><Ionicons name={liked ? "heart" : "heart-outline"} size={13} color={liked ? "#ff5574" : "#fff"} /><Text style={feedStyles.storyActionCount}>{story.likes + (liked ? 1 : 0)}</Text></Pressable>
-    </View>
-  </View>;
+function StoryTile({ story, onPress }: { story: typeof storyItems[number]; onPress: () => void }) {
+  return <Pressable onPress={onPress} style={feedStyles.storyTile}>
+    <Image source={{ uri: story.image }} style={feedStyles.storyImage} />
+    <View style={feedStyles.storyShade} />
+    <View style={feedStyles.storyRing}><Image source={{ uri: story.image }} style={feedStyles.storyAvatar} /></View>
+    <Text style={feedStyles.storyName} numberOfLines={2}>{story.name}</Text>
+  </Pressable>;
 }
+
 function MessagesPage({ onClose, initialSelected, storyMessages }: { onClose: () => void; initialSelected: string | null; storyMessages: StoryMessage[] }) {
   const slide = useRef(new Animated.Value(1)).current;
   const [selected, setSelected] = useState<string | null>(initialSelected);
@@ -234,7 +229,7 @@ function CommunityPage({ onScroll, onOverlayChange }: PageProps) {
       <View style={feedStyles.tabs}><Text style={[feedStyles.tab, feedStyles.active]}>For You</Text><Text style={feedStyles.tab}>Following</Text></View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={feedStyles.stories}>
         <Pressable onPress={() => openStory({ name: "Your story", image: "https://i.pravatar.cc/100?img=12", caption: "Share something with the community", likes: 0 })} style={({ pressed }) => [feedStyles.storyTile, feedStyles.createStory, pressed && feedStyles.pressed]}><View style={feedStyles.createStoryTop}><View style={feedStyles.createAvatar}><Ionicons name="person" size={30} color={colors.muted} /></View><View style={feedStyles.plus}><Ionicons name="add" size={21} color="#fff" /></View></View><Text style={feedStyles.createText}>Create story</Text></Pressable>
-        {storyItems.map(item => <StoryTile key={item.name} story={item} liked={likedStories.includes(item.name)} onPress={() => openStory(item)} onReply={() => openStory(item)} onLike={() => toggleStoryLike(item.name)} />)}
+        {storyItems.map(item => <StoryTile key={item.name} story={item} onPress={() => openStory(item)} />)}
       </ScrollView>
       <Pressable style={feedStyles.compose}><View style={feedStyles.avatar}><Ionicons name="person" size={17} color={colors.muted} /></View><Text style={feedStyles.placeholder}>What's happening in tech?</Text><Ionicons name="image-outline" size={20} color={colors.muted} /></Pressable>
       <PostCard delay={80} name="Kwame Repairs" initialComments={["Could you show the meter reading?", "Thanks for sharing the diagnosis."]} handle="@kwamerepairs" text="Board repair today. Found a short on the power rail — sharing the diagnosis process for anyone learning microsoldering." image="https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&w=1000&q=85" />
@@ -243,7 +238,14 @@ function CommunityPage({ onScroll, onOverlayChange }: PageProps) {
       <PostCard delay={380} name="Fixora Learn" initialComments={["Can you share the full checklist?", "This fixed my charging issue."]} handle="@fixoralearn" text="Tutorial: three safe checks to try when your phone won’t charge. Save this one before you visit a repairer." image="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1000&q=85" />
       <PostCard delay={480} name="Circuit Corner" initialComments={["Which microscope setup is this?", "Great close-up of the board."]} handle="@circuitcorner" text="A little patience, the right tools, and a clean workspace make difficult repairs feel possible." image="https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&w=1000&q=85" />
     </ScrollView>
-    {story && <Animated.View style={[feedStyles.storyViewer, { opacity: storyMotion, transform: [{ scale: storyMotion.interpolate({ inputRange: [0, 1], outputRange: [1.04, 1] }) }] }]}><Image source={{ uri: story.image }} style={feedStyles.storyViewerImage} /><View style={feedStyles.storyViewerShade} /><Pressable onPress={() => setStory(null)} style={feedStyles.storyClose} hitSlop={8}><Ionicons name="close" size={25} color="#fff" /></Pressable><View style={feedStyles.storyViewerCopy}><Text style={feedStyles.storyViewerName}>{story.name}</Text><Text style={feedStyles.storyViewerCaption}>{story.caption}</Text></View><View style={feedStyles.storyReplyPanel}><Pressable onPress={() => toggleStoryLike(story.name)} style={feedStyles.storyViewerLike}><Ionicons name={likedStories.includes(story.name) ? "heart" : "heart-outline"} size={17} color={likedStories.includes(story.name) ? colors.accent : colors.ink} /><Text style={feedStyles.storyViewerLikeText}>{story.likes + (likedStories.includes(story.name) ? 1 : 0)} likes</Text></Pressable><View style={feedStyles.storyReplyRow}><TextInput value={storyReplyText} onChangeText={setStoryReplyText} onSubmitEditing={sendStoryReply} returnKeyType="send" placeholder={"Reply to " + story.name + "’s story..."} placeholderTextColor={colors.muted} style={feedStyles.storyReplyInput} /><Pressable onPress={sendStoryReply} style={feedStyles.storySend} accessibilityLabel="Send story reply"><Ionicons name="send" size={17} color="#fff" /></Pressable></View></View></Animated.View>}
+    {story && <Animated.View style={[feedStyles.storyViewer, { opacity: storyMotion, transform: [{ scale: storyMotion.interpolate({ inputRange: [0, 1], outputRange: [1.04, 1] }) }] }]}>
+      <Image source={{ uri: story.image }} style={feedStyles.storyViewerImage} resizeMode="cover" />
+      <View style={feedStyles.storyViewerShade} />
+      <View style={feedStyles.storyProgress}>{storyItems.map((item, index) => <View key={item.name} style={feedStyles.storyProgressTrack}><View style={[feedStyles.storyProgressFill, index <= storyItems.findIndex(entry => entry.name === story.name) && feedStyles.storyProgressActive]} /></View>)}</View>
+      <View style={feedStyles.storyHeader}><Image source={{ uri: story.image }} style={feedStyles.storyHeaderAvatar} /><View style={feedStyles.storyHeaderCopy}><Text style={feedStyles.storyHeaderName}>{story.name}</Text><Text style={feedStyles.storyHeaderTime}>10h · Watch full reel</Text></View><Pressable onPress={() => setStory(null)} style={feedStyles.storyHeaderClose} hitSlop={8}><Ionicons name="close" size={24} color="#fff" /></Pressable></View>
+      <View style={feedStyles.storyViewerCopy}><Text style={feedStyles.storyViewerCaption}>{story.caption}</Text></View>
+      <View style={feedStyles.storyReplyPanel}><TextInput value={storyReplyText} onChangeText={setStoryReplyText} onSubmitEditing={sendStoryReply} returnKeyType="send" placeholder="Send message" placeholderTextColor="rgba(255,255,255,.78)" style={feedStyles.storyReplyInput} /><Pressable onPress={() => toggleStoryLike(story.name)} style={feedStyles.storyViewerLike} accessibilityLabel={likedStories.includes(story.name) ? "Unlike story" : "Like story"}><Ionicons name={likedStories.includes(story.name) ? "heart" : "heart-outline"} size={28} color={likedStories.includes(story.name) ? "#ff5574" : "#fff"} /></Pressable><Pressable onPress={sendStoryReply} style={feedStyles.storySend} accessibilityLabel="Send story reply"><Ionicons name="paper-plane-outline" size={26} color="#fff" /></Pressable></View>
+    </Animated.View>}
     {messagesOpen && <MessagesPage onClose={() => { setMessagesOpen(false); setInitialMessageRecipient(null); }} initialSelected={initialMessageRecipient} storyMessages={storyMessages} />}
   </View>;
 }
@@ -293,28 +295,31 @@ const feedStyles = StyleSheet.create({
   compose: { height: 62, flexDirection: "row", alignItems: "center", gap: 10, borderBottomWidth: 1, borderTopWidth: 1, borderColor: colors.line },
   avatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" },
   placeholder: { flex: 1, color: colors.muted, fontSize: 14 },
-  storyActions: { position: "absolute", left: 5, right: 5, bottom: 6, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  storyActionButton: { minWidth: 28, height: 24, paddingHorizontal: 5, borderRadius: 12, backgroundColor: "rgba(0,0,0,.58)", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3 },
-  storyActionActive: { backgroundColor: "rgba(255,255,255,.92)" },
-  storyActionCount: { color: "#fff", fontSize: 10, fontWeight: "700" },
-  storyReplyPanel: { position: "absolute", left: 16, right: 16, bottom: 24, backgroundColor: "rgba(255,255,255,.96)", borderRadius: 18, padding: 10, gap: 8 },
-  storyViewerLike: { alignSelf: "flex-end", flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4 },
-  storyViewerLikeText: { color: colors.ink, fontSize: 12, fontWeight: "700" },
-  storyReplyRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  storyReplyInput: { flex: 1, height: 42, borderRadius: 21, backgroundColor: colors.soft, paddingHorizontal: 14, color: colors.ink, fontSize: 13 },
-  storySend: { width: 38, height: 38, borderRadius: 19, backgroundColor: colors.blue, alignItems: "center", justifyContent: "center" },
+  storyProgress: { position: "absolute", top: 42, left: 9, right: 9, flexDirection: "row", gap: 4, zIndex: 7 },
+  storyProgressTrack: { flex: 1, height: 2, borderRadius: 2, backgroundColor: "rgba(255,255,255,.4)", overflow: "hidden" },
+  storyProgressFill: { width: "0%", height: "100%", backgroundColor: "#fff" },
+  storyProgressActive: { width: "100%" },
+  storyHeader: { position: "absolute", top: 55, left: 15, right: 14, flexDirection: "row", alignItems: "center", gap: 9, zIndex: 7 },
+  storyHeaderAvatar: { width: 36, height: 36, borderRadius: 18, borderWidth: 1.5, borderColor: "#fff" },
+  storyHeaderCopy: { flex: 1 },
+  storyHeaderName: { color: "#fff", fontSize: 14, fontWeight: "800" },
+  storyHeaderTime: { color: "rgba(255,255,255,.82)", fontSize: 12, marginTop: 2 },
+  storyHeaderClose: { width: 38, height: 38, alignItems: "center", justifyContent: "center" },
+  storyReplyPanel: { position: "absolute", left: 0, right: 0, bottom: 0, backgroundColor: "#090a0e", flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 13, paddingTop: 13, paddingBottom: 22 },
+  storyViewerLike: { width: 34, height: 48, alignItems: "center", justifyContent: "center" },
+  storyReplyInput: { flex: 1, height: 52, borderRadius: 27, backgroundColor: "#0d0f14", borderWidth: 1.2, borderColor: "rgba(255,255,255,.72)", paddingHorizontal: 18, color: "#fff", fontSize: 15 },
+  storySend: { width: 34, height: 48, alignItems: "center", justifyContent: "center" },
   storyReplyBubble: { alignSelf: "flex-end", maxWidth: "94%", backgroundColor: "#eef5ff", borderRadius: 14, padding: 10, marginBottom: 8 },
   storyReplyContext: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 7 },
   storyReplyContextImage: { width: 34, height: 34, borderRadius: 8 },
   storyReplyLabel: { color: colors.blue, fontSize: 11, fontWeight: "800" },
   storyReplyCaption: { color: colors.muted, fontSize: 10, marginTop: 2 },
   storyViewer: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, backgroundColor: "#101114", zIndex: 5 },
-  storyViewerImage: { width: "100%", height: "100%" },
-  storyViewerShade: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.28)" },
-  storyClose: { position: "absolute", top: 20, right: 18, width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(0,0,0,0.35)", alignItems: "center", justifyContent: "center" },
+  storyViewerImage: { position: "absolute", left: 0, right: 0, top: 0, bottom: 106, width: "100%" },
+  storyViewerShade: { position: "absolute", left: 0, right: 0, top: 0, bottom: 106, backgroundColor: "rgba(0,0,0,0.22)" },
   storyViewerCopy: { position: "absolute", left: 22, right: 22, bottom: 132 },
   storyViewerName: { color: "#fff", fontSize: 24, fontWeight: "800" },
-  storyViewerCaption: { color: "rgba(255,255,255,0.88)", fontSize: 15, marginTop: 6 },
+  storyViewerCaption: { color: "rgba(255,255,255,0.92)", fontSize: 15, fontWeight: "700", textShadowColor: "rgba(0,0,0,.5)", textShadowRadius: 5 },
   pressed: { opacity: 0.82 },
   messageOverlay: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, backgroundColor: colors.card, zIndex: 8, paddingHorizontal: 18, paddingTop: 8 },
   messageHeader: { height: 60, flexDirection: "row", alignItems: "center", gap: 16, borderBottomWidth: 1, borderBottomColor: colors.line },

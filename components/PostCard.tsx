@@ -114,7 +114,8 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
     <Modal visible={commentsOpen} transparent animationType="slide" onRequestClose={() => setCommentsOpen(false)}>
       <View style={styles.modalRoot}>
         <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setCommentsOpen(false)} />
-      <KeyboardAvoidingView style={[styles.commentsSheet, { transform: [{ translateY: sheetDragY }] }]} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={0}>
+        <KeyboardAvoidingView style={styles.sheetKeyboard} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={0}>
+        <Animated.View style={[styles.commentsSheet, { transform: [{ translateY: sheetDragY }] }]}>
           <View {...sheetPan.panHandlers} collapsable={false} style={styles.sheetHandleArea}><View style={styles.sheetHandle} /></View>
           <View style={styles.sheetHeader}><Text style={styles.sheetTitle}>Comments</Text><Pressable onPress={() => setCommentsOpen(false)} hitSlop={8}><Ionicons name="close" size={22} color={colors.ink} /></Pressable></View>
           <View style={styles.sortRow}><Text style={styles.sortText}>Most relevant</Text><Ionicons name="chevron-down" size={14} color={colors.muted} /></View>
@@ -122,6 +123,7 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
             {localComments.length ? localComments.map((comment, index) => <View key={index} style={styles.commentEntry}><View style={styles.commentAvatar}><Ionicons name="person" size={15} color={colors.muted} /></View><View style={{ flex: 1 }}><View style={styles.commentBubble}><Text style={styles.commentAuthor}>Community member</Text><Text style={styles.commentCopy}>{comment}</Text></View><Text style={styles.commentMeta}>1h · Like · Reply</Text></View></View>) : <Text style={styles.emptyComments}>Be the first to comment.</Text>}
           </ScrollView>
           <View style={styles.commentComposer}><View style={styles.commentCurrentAvatar}><Ionicons name="person" size={16} color={colors.muted} /></View><TextInput value={commentText} onChangeText={setCommentText} onSubmitEditing={addComment} returnKeyType="send" placeholder="Write a comment..." placeholderTextColor={colors.muted} style={styles.commentInput} /><Pressable onPress={addComment} hitSlop={8} accessibilityLabel="Post comment"><Ionicons name="send" size={20} color={commentText.trim() ? colors.blue : colors.line} /></Pressable></View>
+        </Animated.View>
         </KeyboardAvoidingView>
       </View>
     </Modal>
@@ -152,6 +154,7 @@ const styles = StyleSheet.create({
   viewComments: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4, paddingVertical: 5 },
   viewCommentsText: { color: colors.muted, fontSize: 12, fontWeight: "600" },
   modalRoot: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,.48)" },
+  sheetKeyboard: { flex: 1, justifyContent: "flex-end" },
   commentsSheet: { height: "76%", maxHeight: "88%", backgroundColor: "#fff", borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 16, paddingTop: 9, paddingBottom: 18, overflow: "hidden" },
   sheetHandleArea: { minHeight: 24, alignItems: "center", justifyContent: "center", marginBottom: 7 },
   sheetHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: "#d0d2d6" },

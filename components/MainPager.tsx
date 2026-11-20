@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Easing, Image, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Animated, BackHandler, Easing, Image, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,10 +23,17 @@ const repairSlides = [
 ];
 
 export function MainPager({ initial }: { initial: MainRoute }) {
+  const router = useRouter();
   const { visibility, onScroll } = useBottomNavVisibility();
   const [communityOverlayOpen, setCommunityOverlayOpen] = useState(false);
+  const communityOverlayRef = useRef(communityOverlayOpen);
+  communityOverlayRef.current = communityOverlayOpen;
+  const canNativeBack = useRef(router.canGoBack());
+  canNativeBack.current = router.canGoBack();
   const initialIndex = menuRoutes.indexOf(initial);
   const [pageWidth, setPageWidth] = useState(0);
+  const pageWidthRef = useRef(pageWidth);
+  pageWidthRef.current = pageWidth;
   const pageProgress = useRef(new Animated.Value(initialIndex)).current;
   const pageIndex = useRef(initialIndex);
   const trackPosition = useRef(new Animated.Value(0)).current;
@@ -92,7 +99,12 @@ export function MainPager({ initial }: { initial: MainRoute }) {
       dragX.stopAnimation();
       dragX.setValue(0);
     },
-    onMoveShouldSetPanResponderCapture: (_, gesture) => Math.abs(gesture.dx) > Math.abs(gesture.dy) + 14 && Math.abs(gesture.dx) > 12,
+    onMoveShouldSetPanResponderCapture: (_, gesture) => {
+      const width = pageWidthRef.current;
+      if (communityOverlayRef.current || canNativeBack.current || !width) return false;
+      const startsAtSystemEdge = gesture.x0 < 28 || gesture.x0 > width - 28;
+      return startsAtSystemEdge && Math.abs(gesture.dx) > Math.abs(gesture.dy) + 14 && Math.abs(gesture.dx) > 12;
+    },
     onPanResponderMove: (_, gesture) => {
       dragX.setValue(gesture.dx);
       onSwipeMoveRef.current(gesture);
@@ -107,12 +119,23 @@ export function MainPager({ initial }: { initial: MainRoute }) {
       gestureSettled.current = true;
       settleTo(pageIndex.current);
     },
-    onPanResponderTerminationRequest: () => false,
+    onPanResponderTerminationRequest: () => true,
   })).current;
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (communityOverlayOpen || router.canGoBack()) return false;
+      if (pageIndex.current > 0) {
+        settleTo(pageIndex.current - 1);
+        return true;
+      }
+      return false;
+    });
+    return () => subscription.remove();
+  }, [communityOverlayOpen, router, settleTo]);
 
   return <SafeAreaProvider><SafeAreaView edges={["top"]} style={styles.safe}>
     <View style={styles.root}>
-      <View style={styles.viewport} onLayout={event => { const width = event.nativeEvent.layout.width; setPageWidth(width); const baseX = -pageIndex.current * width; trackBaseX.current = baseX; trackPosition.setValue(baseX); }}>
+      <View {...swipeResponder.panHandlers} style={styles.viewport} onLayout={event => { const width = event.nativeEvent.layout.width; setPageWidth(width); const baseX = -pageIndex.current * width; trackBaseX.current = baseX; trackPosition.setValue(baseX); }}>
         <Animated.View style={[styles.track, { width: pageWidth ? pageWidth * menuRoutes.length : "400%", transform: [{ translateX: Animated.add(trackPosition, dragX) }] }]}>
           <View style={[styles.page, { width: pageWidth || 1 }]}><HomePage onScroll={onScroll} /></View>
           <View style={[styles.page, { width: pageWidth || 1 }]}><RepairPage onScroll={onScroll} /></View>
@@ -120,7 +143,7 @@ export function MainPager({ initial }: { initial: MainRoute }) {
           <View style={[styles.page, { width: pageWidth || 1 }]}><ProfilePage onScroll={onScroll} /></View>
         </Animated.View>
       </View>
-      {!communityOverlayOpen && <BottomNav active={initial} visibility={visibility} pageProgress={pageProgress} onSelect={index => settleTo(index)} swipePanHandlers={swipeResponder.panHandlers} />}
+      {!communityOverlayOpen && <BottomNav active={initial} visibility={visibility} pageProgress={pageProgress} onSelect={index => settleTo(index)} />}
     </View>
   </SafeAreaView></SafeAreaProvider>;
 }
@@ -204,7 +227,7 @@ function MessagesPage({ onClose, onOpenStory, onOpenProfile, initialSelected, st
   useEffect(() => { Animated.timing(slide, { toValue: 0, duration: 520, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(); }, [slide]);
   const sendMessage = () => { if (!draft.trim() || !selected) return; setSent(current => [...current, { recipient: selected, text: draft.trim() }]); setDraft(""); };
   return <Animated.View style={[feedStyles.messageOverlay, { opacity: slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }), transform: [{ translateX: slide.interpolate({ inputRange: [0, 1], outputRange: [0, 420] }) }, { scale: slide.interpolate({ inputRange: [0, 1], outputRange: [1, 0.98] }) }] }]}>
-    <KeyboardAvoidingView style={feedStyles.messageKeyboard} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={0}>
+    <KeyboardAvoidingView style={feedStyles.messageKeyboard} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={0}>
       <View style={feedStyles.messageHeader}><Pressable onPress={selected ? () => setSelected(null) : newMessageMode ? () => setNewMessageMode(false) : onClose} hitSlop={10}><Ionicons name="arrow-back" size={23} color={colors.ink} /></Pressable><View style={feedStyles.messageTitleWrap}><Text style={feedStyles.messageTitle}>{selected || (newMessageMode ? "New message" : "Messages")}</Text>{selected && <Text style={feedStyles.messageSubtitle}>Active now</Text>}</View>{!selected && !newMessageMode && <Pressable style={feedStyles.newMessageButton} hitSlop={8} onPress={() => setNewMessageMode(true)} accessibilityRole="button" accessibilityLabel="Start a new message"><Ionicons name="create-outline" size={21} color={colors.ink} /></Pressable>}</View>
       {!selected ? <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={feedStyles.messageList} keyboardShouldPersistTaps="always">{newMessageMode && <Text style={feedStyles.newMessageHint}>Choose someone to start a conversation.</Text>}{conversations.map(item => <Pressable key={item.name} onPress={() => { setSelected(item.name); setNewMessageMode(false); }} style={({ pressed }) => [feedStyles.messageRow, pressed && feedStyles.pressed]}><Pressable onPress={() => onOpenProfile(profileRouteId(item.name))} accessibilityRole="button"><Image source={{ uri: item.image }} style={feedStyles.messageAvatar} /></Pressable><View style={feedStyles.messageCopy}><Text style={feedStyles.messageName}>{item.name}</Text><Text style={feedStyles.messagePreview} numberOfLines={1}>{item.preview}</Text></View><View style={feedStyles.messageMeta}><Text style={feedStyles.messageTime}>{item.time}</Text>{item.unread > 0 && <View style={feedStyles.unread}><Text style={feedStyles.unreadText}>{item.unread}</Text></View>}</View></Pressable>)}</ScrollView> : <View style={feedStyles.chatBody}><View style={feedStyles.chatIntro}><Pressable onPress={() => onOpenProfile(profileRouteId(active?.name || selected))} accessibilityRole="button" accessibilityLabel={"View " + (active?.name || selected) + " profile"}><Image source={{ uri: active?.image }} style={feedStyles.chatAvatar} /><Text style={feedStyles.chatName}>{active?.name || selected}</Text></Pressable><Text style={feedStyles.chatIntroText}>This is the beginning of your conversation.</Text></View><View style={feedStyles.sentMessages}>{storyMessages.filter(message => message.recipient === selected).map(message => <View key={message.id} style={feedStyles.storyReplyBubble}><Pressable onPress={() => onOpenStory(message)} style={feedStyles.storyReplyContext} accessibilityRole="button" accessibilityLabel={"Open " + message.storyAuthor + "’s story"}><Image source={{ uri: message.storyImage }} style={feedStyles.storyReplyContextImage} /><View style={{ flex: 1 }}><Text style={feedStyles.storyReplyLabel}>Replied to {message.storyAuthor}’s story</Text><Text numberOfLines={1} style={feedStyles.storyReplyCaption}>{message.storyCaption}</Text></View></Pressable><Text style={feedStyles.sentText}>{message.text}</Text></View>)}{sent.filter(message => message.recipient === selected).map((message, index) => <View key={index} style={feedStyles.sentBubble}><Text style={feedStyles.sentText}>{message.text}</Text></View>)}</View><View style={feedStyles.chatComposer}><TextInput value={draft} onChangeText={setDraft} onSubmitEditing={sendMessage} returnKeyType="send" placeholder="Message..." placeholderTextColor={colors.muted} style={feedStyles.messageInput} /><Pressable onPress={sendMessage} hitSlop={8} accessibilityRole="button" accessibilityLabel="Send message"><Ionicons name="arrow-up-circle" size={30} color={draft.trim() ? colors.blue : colors.line} /></Pressable></View></View>}
     </KeyboardAvoidingView>
@@ -227,6 +250,8 @@ function CommunityPage({ onScroll, onOverlayChange }: PageProps) {
   const [storyReturn, setStoryReturn] = useState<{ kind: "community" | "messages"; recipient: string | null }>({ kind: "community", recipient: null });
   const dimensions = useRef({ width, height });
   dimensions.current = { width, height };
+  const canNativeBack = useRef(router.canGoBack());
+  canNativeBack.current = router.canGoBack();
   useEffect(() => subscribeProfilePosts(() => setProfilePosts(getProfilePosts())), []);
   useEffect(() => { onOverlayChange?.(Boolean(story || messagesOpen || composeOpen)); }, [story, messagesOpen, composeOpen, onOverlayChange]);
   const toggleStoryLike = (name: string) => setLikedStories(current => current.includes(name) ? current.filter(item => item !== name) : [...current, name]);
@@ -243,6 +268,16 @@ function CommunityPage({ onScroll, onOverlayChange }: PageProps) {
     setStory(null);
     setMessagesOpen(true);
   };
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (story) { closeStory(); return true; }
+      if (messagesOpen) { setMessagesOpen(false); setInitialMessageRecipient(null); return true; }
+      if (composeOpen) { setComposeOpen(false); return true; }
+      if (searchOpen) { setSearchOpen(false); setSearchText(""); return true; }
+      return false;
+    });
+    return () => subscription.remove();
+  }, [story, messagesOpen, composeOpen, searchOpen, storyReturn]);
   const publishPost = () => {
     const text = postDraft.trim();
     if (!text) return;
@@ -262,20 +297,32 @@ function CommunityPage({ onScroll, onOverlayChange }: PageProps) {
   const storyPan = useRef(PanResponder.create({
     onMoveShouldSetPanResponder: (_, gesture) => {
       const size = dimensions.current;
-      const awayFromSystemEdges = gesture.x0 > 26 && gesture.x0 < size.width - 26;
-      const awayFromComposer = gesture.y0 < size.height - 112;
-      return awayFromSystemEdges && awayFromComposer && Math.abs(gesture.dx) > 14 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.15;
+      const startsAtSystemEdge = gesture.x0 < 26 || gesture.x0 > size.width - 26;
+      if (startsAtSystemEdge && canNativeBack.current) return false;
+      return Math.abs(gesture.dx) > 14 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.15;
     },
     onPanResponderRelease: (_, gesture) => {
+      const size = dimensions.current;
+      const startsAtSystemEdge = gesture.x0 < 26 || gesture.x0 > size.width - 26;
+      if (startsAtSystemEdge && !canNativeBack.current && gesture.dx > 55) { moveStoryRef.current(-1); return; }
       if (gesture.dx <= -55) moveStoryRef.current(1);
       else if (gesture.dx >= 55) moveStoryRef.current(-1);
     },
   })).current;
+  const storyWasOpen = useRef(false);
   useEffect(() => {
-    if (story) {
+    if (!story) {
+      storyWasOpen.current = false;
       storyMotion.setValue(0);
-      Animated.timing(storyMotion, { toValue: 1, duration: 460, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+      return;
     }
+    if (storyWasOpen.current) {
+      storyMotion.setValue(1);
+      return;
+    }
+    storyWasOpen.current = true;
+    storyMotion.setValue(0);
+    Animated.timing(storyMotion, { toValue: 1, duration: 460, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   }, [story, storyMotion]);
   return <View style={feedStyles.root}>
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={feedStyles.content} onScroll={onScroll} scrollEventThrottle={16}>
@@ -290,19 +337,18 @@ function CommunityPage({ onScroll, onOverlayChange }: PageProps) {
       {visiblePosts.map((post, index) => <PostCard key={post.id} delay={Math.min(index, 5) * 80} name={post.name} handle={post.handle} text={post.text} image={post.image} initialComments={post.initialComments} />)}
       {visiblePosts.length === 0 && <Text style={feedStyles.noSearchResults}>No posts or people match “{searchText.trim()}”.</Text>}
     </ScrollView>
-    {story && <Animated.View {...storyPan.panHandlers} style={[feedStyles.storyViewer, { opacity: storyMotion, transform: [{ scale: storyMotion.interpolate({ inputRange: [0, 1], outputRange: [1.04, 1] }) }] }]}>
+    {story && <Animated.View style={[feedStyles.storyViewer, { opacity: storyMotion, transform: [{ scale: storyMotion.interpolate({ inputRange: [0, 1], outputRange: [1.04, 1] }) }] }]}>
       <Image source={{ uri: story.image }} style={feedStyles.storyViewerImage} resizeMode="cover" />
       <View style={feedStyles.storyViewerShade} />
-      <Pressable onPress={() => moveStory(-1)} style={feedStyles.storyTapLeft} accessibilityLabel="Previous story" />
-      <Pressable onPress={() => moveStory(1)} style={feedStyles.storyTapRight} accessibilityLabel="Next story" />
+      <View {...storyPan.panHandlers} collapsable={false} style={feedStyles.storyGestureSurface} />
       <View style={feedStyles.storyProgress}>{storyItems.map((item, index) => <View key={item.name} style={feedStyles.storyProgressTrack}><View style={[feedStyles.storyProgressFill, index <= storyItems.findIndex(entry => entry.name === story.name) && feedStyles.storyProgressActive]} /></View>)}</View>
       <View style={feedStyles.storyHeader}><Pressable onPress={() => router.push({ pathname: "/profile/[id]", params: { id: profileRouteId(story.name) } } as never)} style={feedStyles.storyIdentity} accessibilityRole="button"><Image source={{ uri: story.image }} style={feedStyles.storyHeaderAvatar} /><View style={feedStyles.storyHeaderCopy}><Text style={feedStyles.storyHeaderName}>{story.name}</Text><Text style={feedStyles.storyHeaderTime}>10h · Watch full reel</Text></View></Pressable><Pressable onPress={closeStory} style={feedStyles.storyHeaderClose} hitSlop={8}><Ionicons name="close" size={24} color="#fff" /></Pressable></View>
       <View style={feedStyles.storyViewerCopy}><Text style={feedStyles.storyViewerCaption}>{story.caption}</Text></View>
-      <KeyboardAvoidingView pointerEvents="box-none" style={feedStyles.storyComposerAvoider} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={0}><View style={feedStyles.storyReplyPanel}><TextInput value={storyReplyText} onChangeText={setStoryReplyText} onSubmitEditing={sendStoryReply} returnKeyType="send" placeholder="Send message" placeholderTextColor="rgba(255,255,255,.78)" style={feedStyles.storyReplyInput} /><Pressable onPress={() => toggleStoryLike(story.name)} style={feedStyles.storyViewerLike} accessibilityLabel={likedStories.includes(story.name) ? "Unlike story" : "Like story"}><Ionicons name={likedStories.includes(story.name) ? "heart" : "heart-outline"} size={28} color={likedStories.includes(story.name) ? "#ff5574" : "#fff"} /></Pressable><Pressable onPress={sendStoryReply} style={feedStyles.storySend} accessibilityLabel="Send story reply"><Ionicons name="paper-plane-outline" size={26} color="#fff" /></Pressable></View></KeyboardAvoidingView>
+      <KeyboardAvoidingView pointerEvents="box-none" style={feedStyles.storyComposerAvoider} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={0}><View style={feedStyles.storyReplyPanel}><TextInput value={storyReplyText} onChangeText={setStoryReplyText} onSubmitEditing={sendStoryReply} returnKeyType="send" placeholder="Send message" placeholderTextColor="rgba(255,255,255,.78)" style={feedStyles.storyReplyInput} /><Pressable onPress={() => toggleStoryLike(story.name)} style={feedStyles.storyViewerLike} accessibilityLabel={likedStories.includes(story.name) ? "Unlike story" : "Like story"}><Ionicons name={likedStories.includes(story.name) ? "heart" : "heart-outline"} size={28} color={likedStories.includes(story.name) ? "#ff5574" : "#fff"} /></Pressable><Pressable onPress={sendStoryReply} style={feedStyles.storySend} accessibilityRole="button" accessibilityLabel="Send story reply"><Ionicons name="paper-plane-outline" size={26} color="#fff" /></Pressable></View></KeyboardAvoidingView>
     </Animated.View>}
     {messagesOpen && <MessagesPage onClose={() => { setMessagesOpen(false); setInitialMessageRecipient(null); }} onOpenStory={openStoryFromMessage} onOpenProfile={id => router.push({ pathname: "/profile/[id]", params: { id } } as never)} initialSelected={initialMessageRecipient} storyMessages={storyMessages} />}
     <Modal visible={composeOpen} transparent animationType="slide" onRequestClose={() => setComposeOpen(false)}>
-      <View style={feedStyles.composeModalRoot}><Pressable style={StyleSheet.absoluteFillObject} onPress={() => setComposeOpen(false)} /><KeyboardAvoidingView style={feedStyles.composeSheet} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={0}><View style={feedStyles.composeHeader}><Text style={feedStyles.composeTitle}>Create post</Text><Pressable onPress={() => setComposeOpen(false)} hitSlop={8} accessibilityLabel="Close post composer"><Ionicons name="close" size={22} color={colors.ink} /></Pressable></View><TextInput autoFocus multiline value={postDraft} onChangeText={setPostDraft} placeholder="Share something with the community..." placeholderTextColor={colors.muted} style={feedStyles.composeInput} textAlignVertical="top" /><View style={feedStyles.composeFooter}><Text style={feedStyles.composeHint}>Your post will appear in the community feed.</Text><Pressable onPress={publishPost} disabled={!postDraft.trim()} style={[feedStyles.composeButton, !postDraft.trim() && feedStyles.composeButtonDisabled]} accessibilityRole="button" accessibilityLabel="Publish post"><Text style={feedStyles.composeButtonText}>Post</Text></Pressable></View></KeyboardAvoidingView></View>
+      <View style={feedStyles.composeModalRoot}><Pressable style={StyleSheet.absoluteFillObject} onPress={() => setComposeOpen(false)} /><KeyboardAvoidingView style={feedStyles.composeSheet} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={0}><View style={feedStyles.composeHeader}><Text style={feedStyles.composeTitle}>Create post</Text><Pressable onPress={() => setComposeOpen(false)} hitSlop={8} accessibilityLabel="Close post composer"><Ionicons name="close" size={22} color={colors.ink} /></Pressable></View><TextInput autoFocus multiline value={postDraft} onChangeText={setPostDraft} placeholder="Share something with the community..." placeholderTextColor={colors.muted} style={feedStyles.composeInput} textAlignVertical="top" /><View style={feedStyles.composeFooter}><Text style={feedStyles.composeHint}>Your post will appear in the community feed.</Text><Pressable onPress={publishPost} disabled={!postDraft.trim()} style={[feedStyles.composeButton, !postDraft.trim() && feedStyles.composeButtonDisabled]} accessibilityRole="button" accessibilityLabel="Publish post"><Text style={feedStyles.composeButtonText}>Post</Text></Pressable></View></KeyboardAvoidingView></View>
     </Modal>
   </View>;
 }
@@ -366,8 +412,7 @@ const feedStyles = StyleSheet.create({
   composeButtonDisabled: { opacity: 0.42 },
   composeButtonText: { color: "#fff", fontSize: 14, fontWeight: "800" },
   storyComposerAvoider: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0, justifyContent: "flex-end" },
-  storyTapLeft: { position: "absolute", left: 0, width: "32%", top: 96, bottom: 106, zIndex: 5 },
-  storyTapRight: { position: "absolute", right: 0, width: "32%", top: 96, bottom: 106, zIndex: 5 },
+  storyGestureSurface: { position: "absolute", left: 0, right: 0, top: 96, bottom: 106, zIndex: 4 },
   storyProgress: { position: "absolute", top: 42, left: 9, right: 9, flexDirection: "row", gap: 4, zIndex: 7 },
   storyProgressTrack: { flex: 1, height: 2, borderRadius: 2, backgroundColor: "rgba(255,255,255,.4)", overflow: "hidden" },
   storyProgressFill: { width: "0%", height: "100%", backgroundColor: "#fff" },

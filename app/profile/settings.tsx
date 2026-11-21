@@ -1,8 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Alert, Pressable, StyleSheet, Switch, Text, View } from "react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
 import { colors } from "../../constants/theme";
 import { DetailSection, ProfileDetailShell } from "../../components/ProfileDetailShell";
+import { useAuth } from "../../data/AuthContext";
+import { getMySettings, saveUserSettings } from "../../data/fixoraRepository";
 
 type ToggleKey = "push" | "tips" | "location" | "activity";
 const info: Record<string, { title: string; copy: string }> = {
@@ -19,20 +22,57 @@ const info: Record<string, { title: string; copy: string }> = {
 };
 
 export default function Settings() {
-  const [toggles, setToggles] = useState<Record<ToggleKey, boolean>>({ push: true, tips: true, location: false, activity: true });
+  const router = useRouter();
+  const { session, signOut } = useAuth();
+  const [toggles, setToggles] = useState<Record<ToggleKey, boolean>>({ push: false, tips: false, location: false, activity: false });
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsError, setSettingsError] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
-  const setToggle = (key: ToggleKey) => setToggles(current => ({ ...current, [key]: !current[key] }));
+  useEffect(() => {
+    let mounted = true;
+    if (!session) { setSettingsLoading(false); return; }
+    getMySettings().then(row => {
+      if (!mounted) return;
+      if (row) setToggles(current => ({
+        ...current,
+        push: Boolean(row.repair_updates),
+        tips: Boolean(row.community_notifications),
+        location: Boolean(row.nearby_recommendations),
+      }));
+    }).catch(error => { if (mounted) setSettingsError(error instanceof Error ? error.message : "Could not load settings."); })
+      .finally(() => { if (mounted) setSettingsLoading(false); });
+    return () => { mounted = false; };
+  }, [session?.user.id]);
+  const setToggle = async (key: ToggleKey) => {
+    if (key === "activity") {
+      Alert.alert("Preference unavailable", "The existing user_settings table has no product-updates field.");
+      return;
+    }
+    const next = !toggles[key];
+    setSettingsError("");
+    try {
+      await saveUserSettings(key === "push" ? { repair_updates: next } :
+        key === "tips" ? { community_notifications: next } : { nearby_recommendations: next });
+      setToggles(current => ({ ...current, [key]: next }));
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : "Could not save this preference.");
+    }
+  };
   const open = (label: string) => setSelected(label);
   const deleteAccount = () => Alert.alert("Delete account", "This is a preview of the account deletion flow. Your account will not be deleted yet.", [{ text: "Cancel", style: "cancel" }, { text: "Continue", style: "destructive" }]);
   return <ProfileDetailShell title="Settings" eyebrow="YOUR PREFERENCES" subtitle="Make Fixora feel right for you. Changes are saved on this device for now.">
-    <DetailSection title="Notifications"><ToggleRow icon="notifications-outline" label="Repair updates" meta="Status changes and messages" value={toggles.push} onPress={() => setToggle("push")} /><ToggleRow icon="sparkles-outline" label="Tips from the community" meta="Tutorials and useful discoveries" value={toggles.tips} onPress={() => setToggle("tips")} /><ToggleRow icon="megaphone-outline" label="Product updates" meta="New Fixora features and launches" value={toggles.activity} onPress={() => setToggle("activity")} /></DetailSection>
+    <DetailSection title="Notifications"><ToggleRow icon="notifications-outline" label="Repair updates" meta="Status changes and messages" value={toggles.push} onPress={() => setToggle("push")} /><ToggleRow icon="sparkles-outline" label="Tips from the community" meta="Tutorials and useful discoveries" value={toggles.tips} onPress={() => setToggle("tips")} /><ToggleRow icon="megaphone-outline" label="Product updates" meta="Not represented in the existing database" value={toggles.activity} onPress={() => setToggle("activity")} disabled /></DetailSection>
     <DetailSection title="Privacy & security"><ToggleRow icon="location-outline" label="Nearby recommendations" meta="Use location to show repairers near you" value={toggles.location} onPress={() => setToggle("location")} /><SettingRow icon="shield-checkmark-outline" label="Privacy center" onPress={() => open("Privacy center")} /><SettingRow icon="lock-closed-outline" label="Security center" onPress={() => open("Security center")} /><SettingRow icon="phone-portrait-outline" label="Login devices / active sessions" onPress={() => open("Login devices / active sessions")} /><SettingRow icon="key-outline" label="Two-factor authentication" onPress={() => open("Two-factor authentication")} /><SettingRow icon="person-remove-outline" label="Blocked users" onPress={() => open("Blocked users")} /></DetailSection>
     <DetailSection title="Account"><SettingRow icon="person-outline" label="Your Name" meta="@yourhandle" onPress={() => open("Your Name")} /><SettingRow icon="server-outline" label="Data & account controls" onPress={() => open("Data & account controls")} /><Pressable onPress={deleteAccount} style={s.dangerRow}><View style={s.dangerIcon}><Ionicons name="trash-outline" size={18} color={"#D74747"} /></View><View style={s.copy}><Text style={s.dangerLabel}>Delete account</Text><Text style={s.meta}>Permanently remove your Fixora account</Text></View><Ionicons name="chevron-forward" size={17} color={colors.muted} /></Pressable></DetailSection>
     <DetailSection title="About Fixora"><SettingRow icon="document-text-outline" label="Terms" onPress={() => open("Terms")} /><SettingRow icon="eye-outline" label="Privacy policy" onPress={() => open("Privacy policy")} /><SettingRow icon="people-outline" label="Community guidelines" onPress={() => open("Community guidelines")} /><SettingRow icon="flag-outline" label="Report a problem" onPress={() => open("Report a problem")} /></DetailSection>
+    {settingsLoading && <Text style={s.meta}>Loading saved preferences…</Text>}
+    {!settingsLoading && !session && <Pressable onPress={() => router.push("/sign-in" as never)} style={s.authLink}><Text style={s.label}>Sign in to sync preferences</Text><Ionicons name="chevron-forward" size={17} color={colors.blue} /></Pressable>}
+    {!!settingsError && <Text accessibilityRole="alert" style={s.error}>{settingsError}</Text>}
+    {session && <Pressable onPress={async () => { try { await signOut(); router.replace("/sign-in" as never); } catch (error) { Alert.alert("Sign out failed", error instanceof Error ? error.message : "Please try again."); } }} style={s.authLink}><Text style={[s.label, { color: "#D74747" }]}>Sign out</Text><Ionicons name="log-out-outline" size={18} color="#D74747" /></Pressable>}
     {selected && <View style={s.infoCard}><View style={s.infoTop}><View style={s.infoIcon}><Ionicons name="information-circle-outline" size={20} color={colors.blue} /></View><Pressable onPress={() => setSelected(null)}><Ionicons name="close" size={20} color={colors.muted} /></Pressable></View><Text style={s.infoTitle}>{info[selected]?.title || selected}</Text><Text style={s.infoCopy}>{info[selected]?.copy || "Your account details will appear here."}</Text><Pressable onPress={() => setSelected(null)} style={s.done}><Text style={s.doneText}>Done</Text></Pressable></View>}
   </ProfileDetailShell>;
 }
 
-function ToggleRow({ icon, label, meta, value, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; meta: string; value: boolean; onPress: () => void }) { return <Pressable onPress={onPress} style={s.row}><View style={[s.icon, value && s.iconActive]}><Ionicons name={icon} size={18} color={value ? colors.blue : colors.ink} /></View><View style={s.copy}><Text style={s.label}>{label}</Text><Text style={s.meta}>{meta}</Text></View><Switch value={value} onValueChange={onPress} trackColor={{ false: colors.line, true: colors.blue }} thumbColor="#fff" /></Pressable>; }
+function ToggleRow({ icon, label, meta, value, onPress, disabled }: { icon: keyof typeof Ionicons.glyphMap; label: string; meta: string; value: boolean; onPress: () => void; disabled?: boolean }) { return <Pressable disabled={disabled} onPress={onPress} style={[s.row, disabled && { opacity: .55 }]}><View style={[s.icon, value && s.iconActive]}><Ionicons name={icon} size={18} color={value ? colors.blue : colors.ink} /></View><View style={s.copy}><Text style={s.label}>{label}</Text><Text style={s.meta}>{meta}</Text></View><Switch disabled={disabled} value={value} onValueChange={onPress} trackColor={{ false: colors.line, true: colors.blue }} thumbColor="#fff" /></Pressable>; }
 function SettingRow({ icon, label, meta, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; meta?: string; onPress: () => void }) { return <Pressable onPress={onPress} style={s.row}><View style={s.icon}><Ionicons name={icon} size={18} color={colors.ink} /></View><View style={s.copy}><Text style={s.label}>{label}</Text>{meta && <Text style={s.meta}>{meta}</Text>}</View><Ionicons name="chevron-forward" size={17} color={colors.muted} /></Pressable>; }
-const s = StyleSheet.create({ row: { minHeight: 67, borderBottomWidth: 1, borderBottomColor: colors.line, flexDirection: "row", alignItems: "center", gap: 11 }, icon: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" }, iconActive: { backgroundColor: "rgba(45,127,249,.12)" }, copy: { flex: 1 }, label: { color: colors.ink, fontSize: 13, fontWeight: "800" }, meta: { color: colors.muted, fontSize: 11, marginTop: 4 }, dangerRow: { minHeight: 67, flexDirection: "row", alignItems: "center", gap: 11 }, dangerIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: "rgba(215,71,71,.1)", alignItems: "center", justifyContent: "center" }, dangerLabel: { color: "#D74747", fontSize: 13, fontWeight: "800" }, infoCard: { marginTop: 18, padding: 15, borderRadius: 18, backgroundColor: "rgba(45,127,249,.09)", borderWidth: 1, borderColor: "rgba(45,127,249,.2)" }, infoTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, infoIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.card, alignItems: "center", justifyContent: "center" }, infoTitle: { color: colors.ink, fontSize: 15, fontWeight: "800", marginTop: 12 }, infoCopy: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 5 }, done: { alignSelf: "flex-start", marginTop: 12, borderRadius: 11, paddingHorizontal: 13, paddingVertical: 8, backgroundColor: colors.blue }, doneText: { color: "#fff", fontSize: 12, fontWeight: "800" } });
+const s = StyleSheet.create({ row: { minHeight: 67, borderBottomWidth: 1, borderBottomColor: colors.line, flexDirection: "row", alignItems: "center", gap: 11 }, icon: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" }, iconActive: { backgroundColor: "rgba(45,127,249,.12)" }, copy: { flex: 1 }, label: { color: colors.ink, fontSize: 13, fontWeight: "800" }, meta: { color: colors.muted, fontSize: 11, marginTop: 4 }, error: { color: "#D74747", fontSize: 12, marginTop: 10 }, authLink: { minHeight: 55, borderBottomWidth: 1, borderBottomColor: colors.line, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, dangerRow: { minHeight: 67, flexDirection: "row", alignItems: "center", gap: 11 }, dangerIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: "rgba(215,71,71,.1)", alignItems: "center", justifyContent: "center" }, dangerLabel: { color: "#D74747", fontSize: 13, fontWeight: "800" }, infoCard: { marginTop: 18, padding: 15, borderRadius: 18, backgroundColor: "rgba(45,127,249,.09)", borderWidth: 1, borderColor: "rgba(45,127,249,.2)" }, infoTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, infoIcon: { width: 38, height: 38, borderRadius: 13, backgroundColor: colors.card, alignItems: "center", justifyContent: "center" }, infoTitle: { color: colors.ink, fontSize: 15, fontWeight: "800", marginTop: 12 }, infoCopy: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 5 }, done: { alignSelf: "flex-start", marginTop: 12, borderRadius: 11, paddingHorizontal: 13, paddingVertical: 8, backgroundColor: colors.blue }, doneText: { color: "#fff", fontSize: 12, fontWeight: "800" } });

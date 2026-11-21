@@ -1,33 +1,47 @@
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView, ScrollView, Text, View, StyleSheet, Image, Pressable } from "react-native";
+import { ActivityIndicator, SafeAreaView, ScrollView, Text, View, StyleSheet, Image, Pressable } from "react-native";
+import { useEffect, useState } from "react";
 import { colors, radius } from "../constants/theme";
 import { Chip } from "../components/Chip";
 import { IconButton } from "../components/IconButton";
 import { useRouter } from "expo-router";
+import { listPublishedTutorials } from "../data/fixoraRepository";
 
-type Tutorial = { id: string; title: string; meta: string; price: string; image: string };
-const tutorials: Tutorial[] = [
-  { id: "iphone-diagnosis", title: "How to diagnose an iPhone with no power", meta: "12 min · Intermediate", price: "GH₵25", image: "https://images.unsplash.com/photo-1581092919535-7146ff8fce9b?auto=format&fit=crop&w=1000&q=85" },
-  { id: "charging-ic", title: "Charging IC diagnosis", meta: "18 min · Advanced", price: "GH₵35", image: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1000&q=85" },
-  { id: "screen-replacement", title: "Screen replacement basics", meta: "9 min · Beginner", price: "Free", image: "https://images.unsplash.com/photo-1603899122634-f086ca5f5ddd?auto=format&fit=crop&w=1000&q=85" },
-  { id: "microsoldering-basics", title: "Microsoldering tools and setup", meta: "15 min · Beginner", price: "GH₵30", image: "https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&w=1000&q=85" },
-  { id: "water-damage-recovery", title: "Water damage recovery", meta: "14 min · Intermediate", price: "GH₵28", image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1000&q=85" },
-  { id: "software-faults", title: "Fixing common software faults", meta: "11 min · Beginner", price: "Free", image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1000&q=85" },
-];
+type Tutorial = { id: string; slug: string; title: string; meta: string; price: string; image: string; category: string };
 
 export default function Learn() {
   const router = useRouter();
-  const openTutorial = (tutorial: Tutorial) => router.push((tutorial.price === "Free" ? "/tutorial/" + tutorial.id : "/tutorial/access?id=" + tutorial.id) as any);
+  const [tutorials, setTutorials] = useState<Tutorial[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let mounted = true;
+    listPublishedTutorials().then(rows => {
+      if (!mounted) return;
+      setTutorials((rows as any[]).map(row => ({
+        id: row.id, slug: row.slug || row.id, title: row.title,
+        meta: [row.duration_minutes ? `${row.duration_minutes} min` : "", row.difficulty || ""].filter(Boolean).join(" · "),
+        price: Number(row.price || 0) === 0 ? "Free" : `${row.currency || "GHS"} ${row.price}`,
+        image: row.cover_url || "", category: row.category || "",
+      })));
+    }).catch(reason => { if (mounted) setError(reason instanceof Error ? reason.message : "Could not load tutorials."); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, []);
+  const openTutorial = (tutorial: Tutorial) => router.push((tutorial.price === "Free" ? "/tutorial/" + tutorial.slug : "/tutorial/access?id=" + tutorial.slug) as any);
   const featured = tutorials[0];
   return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
     <View style={s.head}><Text style={s.title}>Learn</Text><IconButton name="bookmark-outline" /></View>
     <Text style={s.sub}>Learn from verified repairers.</Text>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.chips}><Chip label="Featured" active /><Chip label="Beginner" /><Chip label="Board repair" /><Chip label="Software" /></ScrollView>
-    <Pressable style={s.feature} onPress={() => openTutorial(featured)}><Image source={{ uri: featured.image }} style={s.featureImg} /><View style={s.featureShade} /><View style={s.featureCopy}><View style={s.featureTag}><Ionicons name="lock-closed" size={11} color="#fff" /><Text style={s.kicker}>PREMIUM FEATURED</Text></View><Text style={s.featureTitle}>{featured.title}</Text><Text style={s.featureMeta}>By Kwame Repairs ✓  ·  1.2K learners</Text><View style={s.watch}><Ionicons name="lock-closed" size={13} color="#fff" /><Text style={s.watchText}>Unlock tutorial · {featured.price}</Text></View></View></Pressable>
+    {loading && <ActivityIndicator color={colors.blue} style={{ marginTop: 28 }} />}
+    {!!error && <Text accessibilityRole="alert" style={s.error}>{error}</Text>}
+    {!loading && !error && !tutorials.length && <View style={s.empty}><Ionicons name="school-outline" size={30} color={colors.blue} /><Text style={s.emptyTitle}>No published tutorials yet</Text><Text style={s.meta}>New lessons will appear here when they are published.</Text></View>}
+    {!!featured && <Pressable style={s.feature} onPress={() => openTutorial(featured)}>{featured.image ? <Image source={{ uri: featured.image }} style={s.featureImg} /> : <View style={[s.featureImg, s.imagePlaceholder]} />}<View style={s.featureShade} /><View style={s.featureCopy}><View style={s.featureTag}><Ionicons name={featured.price === "Free" ? "play" : "lock-closed"} size={11} color="#fff" /><Text style={s.kicker}>{featured.price === "Free" ? "FEATURED LESSON" : "PREMIUM FEATURED"}</Text></View><Text style={s.featureTitle}>{featured.title}</Text><Text style={s.featureMeta}>{[featured.category, featured.meta].filter(Boolean).join(" · ")}</Text><View style={s.watch}><Ionicons name={featured.price === "Free" ? "play" : "lock-closed"} size={13} color="#fff" /><Text style={s.watchText}>{featured.price === "Free" ? "Start tutorial" : `Unlock tutorial · ${featured.price}`}</Text></View></View></Pressable>}
     <Text style={s.section}>Popular tutorials</Text>
-    {tutorials.slice(1, 4).map(tutorial => <Pressable key={tutorial.id} onPress={() => openTutorial(tutorial)} style={({ pressed }) => [s.row, pressed && s.pressed]}><Image source={{ uri: tutorial.image }} style={s.thumb} /><View style={s.rowCopy}><Text style={s.tName}>{tutorial.title}</Text><Text style={s.meta}>{tutorial.meta}</Text><Text style={s.price}>{tutorial.price}</Text></View><Ionicons name={tutorial.price === "Free" ? "play-circle-outline" : "lock-closed-outline"} size={18} color={colors.muted} /></Pressable>)}
+    {tutorials.slice(1, 4).map(tutorial => <Pressable key={tutorial.id} onPress={() => openTutorial(tutorial)} style={({ pressed }) => [s.row, pressed && s.pressed]}>{tutorial.image ? <Image source={{ uri: tutorial.image }} style={s.thumb} /> : <View style={[s.thumb, s.imagePlaceholder]} />}<View style={s.rowCopy}><Text style={s.tName}>{tutorial.title}</Text><Text style={s.meta}>{tutorial.meta}</Text><Text style={s.price}>{tutorial.price}</Text></View><Ionicons name={tutorial.price === "Free" ? "play-circle-outline" : "lock-closed-outline"} size={18} color={colors.muted} /></Pressable>)}
     <Text style={s.section}>More tutorials</Text>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.moreList}>{tutorials.slice(4).map(tutorial => <Pressable key={tutorial.id} onPress={() => openTutorial(tutorial)} style={({ pressed }) => [s.moreCard, pressed && s.pressed]}><View><Image source={{ uri: tutorial.image }} style={s.moreImage} /><View style={s.moreBadge}><Ionicons name={tutorial.price === "Free" ? "play" : "lock-closed"} size={10} color="#fff" /></View></View><Text style={s.moreTitle} numberOfLines={2}>{tutorial.title}</Text><Text style={s.moreMeta}>{tutorial.meta}</Text><Text style={s.morePrice}>{tutorial.price}</Text></Pressable>)}</ScrollView>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.moreList}>{tutorials.slice(4).map(tutorial => <Pressable key={tutorial.id} onPress={() => openTutorial(tutorial)} style={({ pressed }) => [s.moreCard, pressed && s.pressed]}><View>{tutorial.image ? <Image source={{ uri: tutorial.image }} style={s.moreImage} /> : <View style={[s.moreImage, s.imagePlaceholder]} />}<View style={s.moreBadge}><Ionicons name={tutorial.price === "Free" ? "play" : "lock-closed"} size={10} color="#fff" /></View></View><Text style={s.moreTitle} numberOfLines={2}>{tutorial.title}</Text><Text style={s.moreMeta}>{tutorial.meta}</Text><Text style={s.morePrice}>{tutorial.price}</Text></Pressable>)}</ScrollView>
   </ScrollView></SafeAreaView>;
 }
 
@@ -63,4 +77,8 @@ const s = StyleSheet.create({
   moreMeta: { fontSize: 12, color: colors.muted, marginTop: 4 },
   morePrice: { fontSize: 13, fontWeight: "800", marginTop: 5, color: colors.ink },
   pressed: { opacity: 0.78 },
+  empty: { alignItems: "center", paddingVertical: 40 },
+  emptyTitle: { fontSize: 17, fontWeight: "800", color: colors.ink, marginTop: 10 },
+  error: { color: "#D74747", fontSize: 12, marginTop: 18 },
+  imagePlaceholder: { backgroundColor: colors.soft },
 });

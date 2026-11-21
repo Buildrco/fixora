@@ -3,6 +3,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { colors } from "../constants/theme";
 import * as Updates from "expo-updates";
+import { AuthProvider } from "../data/AuthContext";
 
 export default function Layout(){
  useEffect(() => {
@@ -17,8 +18,8 @@ export default function Layout(){
    .catch(() => {});
  }, []);
 
- return <>
+ return <AuthProvider><>
   <StatusBar style="dark"/>
   <Stack screenOptions={{headerShown:false,contentStyle:{backgroundColor:colors.card},animation:"slide_from_right"}}/>
- </>
+ </></AuthProvider>
 }

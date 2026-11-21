@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Animated, Image, Pressable, Text, TextInput, View, StyleSheet, Modal, ScrollView, Keyboard, KeyboardAvoidingView, PanResponder } from "react-native";
+import { Alert, Animated, Image, Pressable, Text, TextInput, View, StyleSheet, Modal, ScrollView, Keyboard, KeyboardAvoidingView, PanResponder } from "react-native";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "expo-router";
 import { colors, radius } from "../constants/theme";
+import { addComment, setPostLike, setPostRepost } from "../data/fixoraRepository";
 
 const bubbleLayout = [
   { left: 24, drift: -28, rise: 88, rotate: "-18deg" },
@@ -12,10 +13,10 @@ const bubbleLayout = [
   { left: 68, drift: -22, rise: 94, rotate: "-8deg" },
 ];
 
-export function PostCard({ name, handle, text, image, likes = "42", comments = "13", delay = 0, initialComments = [] }: { name: string; handle: string; text: string; image: string; likes?: string; comments?: string; delay?: number; initialComments?: string[] }) {
+export function PostCard({ postId, name, handle, text, image, likes = "42", comments = "13", reposts = "8", delay = 0, initialComments = [], initialLiked = false, initialReposted = false }: { postId?: string; name: string; handle: string; text: string; image: string; likes?: string; comments?: string; reposts?: string; delay?: number; initialComments?: string[]; initialLiked?: boolean; initialReposted?: boolean }) {
   const router = useRouter();
-  const [liked, setLiked] = useState(false);
-  const [reposted, setReposted] = useState(false);
+  const [liked, setLiked] = useState(initialLiked);
+  const [reposted, setReposted] = useState(initialReposted);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [localComments, setLocalComments] = useState<string[]>(initialComments);
@@ -52,8 +53,12 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
   const bubbleValues = useRef(bubbleLayout.map(() => new Animated.Value(0))).current;
   const commentCount = Number(comments) + Math.max(0, localComments.length - initialComments.length);
 
-  const toggleLike = () => {
+  const toggleLike = async () => {
     const next = !liked;
+    if (postId) {
+      try { await setPostLike(postId, next); }
+      catch (error) { Alert.alert("Like not saved", error instanceof Error ? error.message : "Please try again."); return; }
+    }
     setLiked(next);
     if (!next) return;
     Animated.sequence([
@@ -74,8 +79,13 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
     ]).start();
   };
 
-  const toggleRepost = () => {
-    setReposted(value => !value);
+  const toggleRepost = async () => {
+    const next = !reposted;
+    if (postId) {
+      try { await setPostRepost(postId, next); }
+      catch (error) { Alert.alert("Repost not saved", error instanceof Error ? error.message : "Please try again."); return; }
+    }
+    setReposted(next);
     Animated.sequence([
       Animated.timing(repostScale, { toValue: 1.22, duration: 120, useNativeDriver: true }),
       Animated.spring(repostScale, { toValue: 1, friction: 5, tension: 130, useNativeDriver: true }),
@@ -86,9 +96,13 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
     Animated.timing(entry, { toValue: 1, duration: 540, delay, useNativeDriver: true }).start();
   }, [delay, entry]);
 
-  const addComment = () => {
+  const submitComment = async () => {
     const value = commentText.trim();
     if (!value) return;
+    if (postId) {
+      try { await addComment(postId, value); }
+      catch (error) { Alert.alert("Comment not posted", error instanceof Error ? error.message : "Please try again."); return; }
+    }
     setLocalComments(current => [...current, value]);
     setCommentText("");
   };
@@ -115,7 +129,7 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
     <View style={styles.actions}>
       <Pressable onPress={toggleLike} hitSlop={8} style={styles.action}><Animated.View style={{ transform: [{ scale: likeScale }] }}><Ionicons name={liked ? "heart" : "heart-outline"} size={21} color={liked ? colors.accent : colors.muted} /></Animated.View><Text style={liked ? styles.activeText : styles.count}>{Number(likes) + (liked ? 1 : 0)}</Text></Pressable>
       <Pressable onPress={toggleComments} hitSlop={8} accessibilityRole="button" accessibilityLabel={commentsOpen ? "Hide comments" : "View comments"} style={[styles.action, commentsOpen && styles.commentAction]}><Animated.View style={{ transform: [{ scale: commentScale }] }}><Ionicons name={commentsOpen ? "chatbubble" : "chatbubble-outline"} size={20} color={commentsOpen ? colors.blue : colors.muted} /></Animated.View><Text style={commentsOpen ? styles.commentText : styles.count}>{commentCount}</Text></Pressable>
-      <Pressable onPress={toggleRepost} hitSlop={8} style={[styles.action, reposted && styles.repostAction]}><Animated.View style={{ transform: [{ scale: repostScale }] }}><Ionicons name="repeat-outline" size={21} color={reposted ? colors.green : colors.muted} /></Animated.View><Text style={reposted ? styles.repostText : styles.count}>{Number(8) + (reposted ? 1 : 0)}</Text></Pressable>
+      <Pressable onPress={toggleRepost} hitSlop={8} style={[styles.action, reposted && styles.repostAction]}><Animated.View style={{ transform: [{ scale: repostScale }] }}><Ionicons name="repeat-outline" size={21} color={reposted ? colors.green : colors.muted} /></Animated.View><Text style={reposted ? styles.repostText : styles.count}>{Number(reposts) + (reposted ? 1 : 0)}</Text></Pressable>
       <Pressable hitSlop={8} style={styles.action}><Ionicons name="share-outline" size={20} color={colors.muted} /></Pressable>
     </View>
     {!commentsOpen && <Pressable onPress={toggleComments} style={styles.viewComments}><Text style={styles.viewCommentsText}>{commentCount} comments · View</Text><Ionicons name="chevron-down" size={14} color={colors.muted} /></Pressable>}
@@ -130,7 +144,7 @@ export function PostCard({ name, handle, text, image, likes = "42", comments = "
           <ScrollView style={styles.commentList} contentContainerStyle={styles.commentListContent} keyboardShouldPersistTaps="always" onScroll={event => { commentsScrollY.current = Math.max(0, event.nativeEvent.contentOffset.y); }} scrollEventThrottle={16}>
             {localComments.length ? localComments.map((comment, index) => <View key={index} style={styles.commentEntry}><View style={styles.commentAvatar}><Ionicons name="person" size={15} color={colors.muted} /></View><View style={{ flex: 1 }}><View style={styles.commentBubble}><Text style={styles.commentAuthor}>Community member</Text><Text style={styles.commentCopy}>{comment}</Text></View><Text style={styles.commentMeta}>1h · Like · Reply</Text></View></View>) : <Text style={styles.emptyComments}>Be the first to comment.</Text>}
           </ScrollView>
-          <View style={styles.commentComposer}><View style={styles.commentCurrentAvatar}><Ionicons name="person" size={16} color={colors.muted} /></View><TextInput value={commentText} onChangeText={setCommentText} onSubmitEditing={addComment} returnKeyType="send" placeholder="Write a comment..." placeholderTextColor={colors.muted} style={styles.commentInput} /><Pressable onPress={addComment} hitSlop={8} accessibilityLabel="Post comment"><Ionicons name="send" size={20} color={commentText.trim() ? colors.blue : colors.line} /></Pressable></View>
+          <View style={styles.commentComposer}><View style={styles.commentCurrentAvatar}><Ionicons name="person" size={16} color={colors.muted} /></View><TextInput value={commentText} onChangeText={setCommentText} onSubmitEditing={submitComment} returnKeyType="send" placeholder="Write a comment..." placeholderTextColor={colors.muted} style={styles.commentInput} /><Pressable onPress={submitComment} hitSlop={8} accessibilityLabel="Post comment"><Ionicons name="send" size={20} color={commentText.trim() ? colors.blue : colors.line} /></Pressable></View>
         </Animated.View>
         </KeyboardAvoidingView>
       </View>

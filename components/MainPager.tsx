@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, BackHandler, Easing, Image, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Alert, Animated, BackHandler, Easing, Image, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,7 +9,7 @@ import { SectionTitle } from "./SectionTitle";
 import { Chip } from "./Chip";
 import { VendorCard } from "./VendorCard";
 import { PostCard } from "./PostCard";
-import { addProfilePost, getProfilePosts, subscribeProfilePosts } from "../data/profileStore";
+import { createPost, listCommunityFeed } from "../data/fixoraRepository";
 import { BottomNav, MainRoute, useBottomNavVisibility } from "./BottomNav";
 
 const repairImg = "https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&w=900&q=85";
@@ -199,14 +199,6 @@ function StoryTile({ story, onPress }: { story: typeof storyItems[number]; onPre
   </Pressable>;
 }
 
-const communityPosts = [
-  { id: "kwame-repairs", name: "Kwame Repairs", handle: "@kwamerepairs", text: "Board repair today. Found a short on the power rail — sharing the diagnosis process for anyone learning microsoldering.", image: "https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&w=1000&q=85", initialComments: ["Could you show the meter reading?", "Thanks for sharing the diagnosis."] },
-  { id: "ktechmobile", name: "K-Tech Mobile", handle: "@ktechmobile", text: "Three clean iPhone 15 Pro units just arrived. Verified stock, 12-month warranty.", image: "https://images.unsplash.com/photo-1592286927505-2fd0b2b8b0a4?auto=format&fit=crop&w=1000&q=85", initialComments: ["Is the warranty valid across Ghana?", "That finish looks great."] },
-  { id: "ama-phone-clinic", name: "Ama’s Phone Clinic", handle: "@amasphoneclinic", text: "Before and after: a careful screen replacement on an iPhone 13. Small details make a repair feel brand new.", image: "https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?auto=format&fit=crop&w=1000&q=85", initialComments: ["What adhesive did you use?", "Clean repair—thanks for posting."] },
-  { id: "fixora-learn", name: "Fixora Learn", handle: "@fixoralearn", text: "Tutorial: three safe checks to try when your phone won’t charge. Save this one before you visit a repairer.", image: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1000&q=85", initialComments: ["Can you share the full checklist?", "This fixed my charging issue."] },
-  { id: "circuit-corner", name: "Circuit Corner", handle: "@circuitcorner", text: "A little patience, the right tools, and a clean workspace make difficult repairs feel possible.", image: "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&w=1000&q=85", initialComments: ["Which microscope setup is this?", "Great close-up of the board."] },
-];
-
 function MessagesPage({ onClose, onOpenStory, onOpenProfile, initialSelected, storyMessages }: { onClose: () => void; onOpenStory: (message: StoryMessage) => void; onOpenProfile: (id: string) => void; initialSelected: string | null; storyMessages: StoryMessage[] }) {
   const slide = useRef(new Animated.Value(1)).current;
   const [selected, setSelected] = useState<string | null>(initialSelected);
@@ -237,7 +229,7 @@ function CommunityPage({ onScroll, onOverlayChange }: PageProps) {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const [story, setStory] = useState<typeof storyItems[number] | null>(null);
-  const [profilePosts, setProfilePosts] = useState(getProfilePosts());
+  const [feedRows, setFeedRows] = useState<any[]>([]);
   const [messagesOpen, setMessagesOpen] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [postDraft, setPostDraft] = useState("");
@@ -252,7 +244,12 @@ function CommunityPage({ onScroll, onOverlayChange }: PageProps) {
   dimensions.current = { width, height };
   const canNativeBack = useRef(router.canGoBack());
   canNativeBack.current = router.canGoBack();
-  useEffect(() => subscribeProfilePosts(() => setProfilePosts(getProfilePosts())), []);
+  useEffect(() => {
+    let mounted = true;
+    listCommunityFeed().then(rows => { if (mounted) setFeedRows(rows as any[]); })
+      .catch(error => console.warn("Supabase community feed unavailable:", error.message));
+    return () => { mounted = false; };
+  }, []);
   useEffect(() => { onOverlayChange?.(Boolean(story || messagesOpen || composeOpen)); }, [story, messagesOpen, composeOpen, onOverlayChange]);
   const toggleStoryLike = (name: string) => setLikedStories(current => current.includes(name) ? current.filter(item => item !== name) : [...current, name]);
   const openStory = (item: typeof storyItems[number], returnToMessages = false, recipient: string | null = null) => { setStoryReplyText(""); setStoryReturn({ kind: returnToMessages ? "messages" : "community", recipient }); setStory(item); };
@@ -278,17 +275,30 @@ function CommunityPage({ onScroll, onOverlayChange }: PageProps) {
     });
     return () => subscription.remove();
   }, [story, messagesOpen, composeOpen, searchOpen, storyReturn]);
-  const publishPost = () => {
+  const publishPost = async () => {
     const text = postDraft.trim();
     if (!text) return;
-    addProfilePost(text);
-    setPostDraft("");
-    setComposeOpen(false);
+    try {
+      await createPost(text);
+      setPostDraft("");
+      setComposeOpen(false);
+      setFeedRows(await listCommunityFeed() as any[]);
+    } catch (error) {
+      Alert.alert("Post not published", error instanceof Error ? error.message : "Please try again.");
+    }
   };
-  const posts = [
-    ...profilePosts.map(post => ({ ...post, initialComments: [] as string[] })),
-    ...communityPosts,
-  ];
+  const posts = feedRows.map(post => ({
+    id: String(post.id),
+    name: post.full_name || post.username || "Fixora member",
+    handle: post.username ? "@" + post.username : "@community-member",
+    text: post.body || "",
+    image: post.media_urls?.[0] || post.avatar_url || repairImg,
+    likes: String(post.like_count ?? 0),
+    comments: String(post.comment_count ?? 0),
+    reposts: String(post.repost_count ?? 0),
+    liked: Boolean(post.liked_by_me),
+    initialComments: [] as string[],
+  }));
   const query = searchText.trim().toLowerCase();
   const visiblePosts = posts.filter(post => !query || [post.name, post.handle, post.text].some(value => value.toLowerCase().includes(query)));
   const storyMotion = useRef(new Animated.Value(0)).current;
@@ -334,7 +344,7 @@ function CommunityPage({ onScroll, onOverlayChange }: PageProps) {
         {storyItems.map(item => <StoryTile key={item.name} story={item} onPress={() => openStory(item)} />)}
       </ScrollView>
       <Pressable onPress={() => setComposeOpen(true)} style={feedStyles.compose} accessibilityRole="button" accessibilityLabel="Create a community post"><View style={feedStyles.avatar}><Ionicons name="person" size={17} color={colors.muted} /></View><Text style={feedStyles.placeholder}>What's happening in tech?</Text><Ionicons name="create-outline" size={20} color={colors.muted} /></Pressable>
-      {visiblePosts.map((post, index) => <PostCard key={post.id} delay={Math.min(index, 5) * 80} name={post.name} handle={post.handle} text={post.text} image={post.image} initialComments={post.initialComments} />)}
+      {visiblePosts.map((post, index) => <PostCard key={post.id} postId={post.id} initialLiked={post.liked} likes={post.likes} comments={post.comments} reposts={post.reposts} delay={Math.min(index, 5) * 80} name={post.name} handle={post.handle} text={post.text} image={post.image} initialComments={post.initialComments} />)}
       {visiblePosts.length === 0 && <Text style={feedStyles.noSearchResults}>No posts or people match “{searchText.trim()}”.</Text>}
     </ScrollView>
     {story && <Animated.View style={[feedStyles.storyViewer, { opacity: storyMotion, transform: [{ scale: storyMotion.interpolate({ inputRange: [0, 1], outputRange: [1.04, 1] }) }] }]}>

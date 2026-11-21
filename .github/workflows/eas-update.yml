@@ -48,6 +48,11 @@ jobs:
         if: steps.setup-eas.outcome == 'failure'
         run: npm install --global eas-cli
 
+      - name: Verify Supabase connection with Expo preview variables
+        run: eas env:exec preview 'node scripts/check-supabase-connection.mjs'
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
       - name: Publish OTA update
         run: eas update --channel preview --non-interactive --message "Fixora update"
         env:

@@ -19,7 +19,7 @@ export default function Home() {
     return <Redirect href="/sign-in" />;
   }
 
-  return <MainPager initial="home" />;
+  return <MainPager initial="community" />;
 }
 
 const styles = StyleSheet.create({

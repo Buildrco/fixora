@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { ScrollView, Text, View, StyleSheet, Image, Pressable, TextInput } from "react-native";
+import { ActivityIndicator, ScrollView, Text, View, StyleSheet, Image, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { colors, radius } from "../../constants/theme";
 import { IconButton } from "../../components/IconButton";
+import { addCartItem, getProduct } from "../../data/fixoraRepository";
 
 type Product = {
   name: string;
@@ -15,6 +16,11 @@ type Product = {
   description: string;
   specs: Array<[string, string]>;
   currentBid: number;
+  id?: string;
+  image_url?: string;
+  image_urls?: string[];
+  seller_name?: string;
+  specifications?: Record<string, unknown>;
 };
 
 const products: Record<string, Product> = {
@@ -66,44 +72,66 @@ const products: Record<string, Product> = {
 export default function ProductDetails() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const product = products[String(id)] ?? products["iphone-15-pro"];
+  const legacyProduct = products[String(id)] ?? null;
+  const [product, setProduct] = useState<Product | null>(legacyProduct);
+  const [loading, setLoading] = useState(true);
+  const [actionError, setActionError] = useState("");
+  const [adding, setAdding] = useState(false);
   const [reminded, setReminded] = useState(false);
   const [following, setFollowing] = useState(false);
-  const [bid, setBid] = useState("");
-  const [highestBid, setHighestBid] = useState(product.currentBid);
-  const [bidMessage, setBidMessage] = useState("");
-
-  const placeBid = () => {
-    const amount = Number(bid.replace(/[^0-9]/g, ""));
-    if (!amount || amount <= highestBid) {
-      setBidMessage(`Enter more than GH₵${highestBid.toLocaleString()}`);
-      return;
-    }
-    setHighestBid(amount);
-    setBid("");
-    setBidMessage("You are currently the highest bidder.");
+  useEffect(() => {
+    let active = true;
+    if (!id) { setLoading(false); return () => { active = false; }; }
+    getProduct(String(id))
+      .then(row => { if (active) setProduct(row as Product | null); })
+      .catch(reason => { if (active) setActionError(reason instanceof Error ? reason.message : "Could not load this product."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [id]);
+  const image = product?.image_url || product?.image || product?.image_urls?.[0] || "";
+  const category = String(product?.category || "Marketplace");
+  const seller = product?.seller_name || product?.seller || "Verified seller";
+  const description = product?.description || "Product details will be added by the seller.";
+  const specs: Array<[string, string]> = Array.isArray(product?.specs)
+    ? product.specs as Array<[string, string]>
+    : Object.entries(product?.specifications || {}).map(([key, value]) => [key, String(value)] as [string, string]);
+  const formattedPrice = (() => {
+    const amount = Number(product?.price);
+    if (!Number.isFinite(amount)) return "Price on request";
+    const currency = String((product as any)?.currency || "GHS");
+    try { return new Intl.NumberFormat("en-GH", { style: "currency", currency }).format(amount); }
+    catch { return `${currency} ${amount.toLocaleString()}`; }
+  })();
+  const addToBasket = async () => {
+    if (!product?.id) { setActionError("This product is not available to order yet."); return; }
+    setAdding(true); setActionError("");
+    try { await addCartItem(product.id); router.push("/cart" as never); }
+    catch (reason) { setActionError(reason instanceof Error ? reason.message : "Could not add this item."); }
+    finally { setAdding(false); }
   };
+
+  if (loading) return <SafeAreaView edges={["top", "bottom"]} style={styles.safe}><ActivityIndicator color={colors.blue} style={{ marginTop: 48 }} /></SafeAreaView>;
+  if (!product) return <SafeAreaView edges={["top", "bottom"]} style={styles.safe}><View style={styles.content}><IconButton name="chevron-back" onPress={() => router.back()} /><Text style={styles.heading}>Product unavailable</Text><Text style={styles.body}>{actionError || "This listing may have been removed."}</Text></View></SafeAreaView>;
 
   return <SafeAreaView edges={["top", "bottom"]} style={styles.safe}>
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
       <View style={styles.imageWrap}>
-        <Image source={{ uri: product.image }} style={styles.image} resizeMode="cover" />
+        {image ? <Image source={{ uri: image }} style={styles.image} resizeMode="cover" /> : <View style={[styles.image, styles.imagePlaceholder]}><Ionicons name="cube-outline" size={44} color={colors.muted} /></View>}
         <View style={styles.imageHeader}><IconButton name="chevron-back" onPress={() => router.back()} /><Pressable testID="reminder-button" onPress={() => setReminded(value => !value)} style={[styles.iconButton, reminded && styles.iconButtonActive]}><Ionicons name={reminded ? "notifications" : "notifications-outline"} size={20} color={reminded ? "#fff" : colors.ink} /></Pressable></View>
         <View style={styles.imageDots}><View style={styles.imageDotActive} /><View style={styles.imageDot} /><View style={styles.imageDot} /></View>
       </View>
       <View style={styles.content}>
-        <Text style={styles.category}>{product.category.toUpperCase()}</Text>
-        <View style={styles.titleRow}><View style={styles.titleCopy}><Text style={styles.name}>{product.name}</Text><Text style={styles.price}>{product.price}</Text></View><Pressable style={styles.favorite}><Ionicons name="heart-outline" size={22} color={colors.ink} /></Pressable></View>
+        <Text style={styles.category}>{category.toUpperCase()}</Text>
+        <View style={styles.titleRow}><View style={styles.titleCopy}><Text style={styles.name}>{product.name}</Text><Text style={styles.price}>{formattedPrice}</Text></View><Pressable style={styles.favorite}><Ionicons name="heart-outline" size={22} color={colors.ink} /></Pressable></View>
         <View style={styles.verified}><Ionicons name="checkmark-circle" size={16} color={colors.blue} /><Text style={styles.verifiedText}>Verified seller · Warranty available</Text></View>
-        <View style={styles.sellerRow}><View style={styles.sellerAvatar}><Text style={styles.sellerInitial}>{product.seller.charAt(0)}</Text></View><View style={styles.sellerCopy}><Text style={styles.sellerLabel}>SELLER</Text><Text style={styles.sellerName}>{product.seller}</Text></View><Pressable onPress={() => setFollowing(value => !value)} style={[styles.followButton, following && styles.following]}><Text style={[styles.followText, following && styles.followingText]}>{following ? "Following" : "Follow"}</Text></Pressable></View>
+        <View style={styles.sellerRow}><View style={styles.sellerAvatar}><Text style={styles.sellerInitial}>{String(seller).charAt(0)}</Text></View><View style={styles.sellerCopy}><Text style={styles.sellerLabel}>SELLER</Text><Text style={styles.sellerName}>{String(seller)}</Text></View><Pressable onPress={() => setFollowing(value => !value)} style={[styles.followButton, following && styles.following]}><Text style={[styles.followText, following && styles.followingText]}>{following ? "Following" : "Follow"}</Text></Pressable></View>
         <Text style={styles.heading}>About this item</Text>
-        <Text style={styles.body}>{product.description}</Text>
-        <Text style={styles.heading}>Specifications</Text>
-        <View style={styles.specGrid}>{product.specs.map(([label, value]) => <View key={label} style={styles.spec}><Text style={styles.specLabel}>{label}</Text><Text style={styles.specValue}>{value}</Text></View>)}</View>
-        <View style={styles.bidCard}><View style={styles.bidHeader}><View><Text style={styles.bidKicker}>LIVE BIDDING</Text><Text style={styles.bidTitle}>Highest bid</Text></View><Ionicons name="trending-up" size={20} color="#fff" /></View><Text style={styles.bidValue}>GH₵{highestBid.toLocaleString()}</Text><Text style={styles.bidHint}>Highest bidder wins when the auction closes.</Text><View style={styles.bidInputRow}><TextInput value={bid} onChangeText={setBid} keyboardType="numeric" placeholder="Your bid amount" placeholderTextColor="rgba(255,255,255,.58)" style={styles.bidInput} /><Pressable testID="place-bid-button" onPress={placeBid} style={styles.bidButton}><Text style={styles.bidButtonText}>Place bid</Text></Pressable></View>{bidMessage ? <Text style={styles.bidMessage}>{bidMessage}</Text> : null}</View>
+        <Text style={styles.body}>{description}</Text>
+        {specs.length ? <><Text style={styles.heading}>Specifications</Text><View style={styles.specGrid}>{specs.map(([label, value]) => <View key={label} style={styles.spec}><Text style={styles.specLabel}>{label}</Text><Text style={styles.specValue}>{value}</Text></View>)}</View></> : null}
+        {actionError ? <Text style={styles.actionError}>{actionError}</Text> : null}
       </View>
     </ScrollView>
-    <View style={styles.footer}><Pressable testID="buy-now-button" onPress={() => router.push("/cart" as never)} style={styles.buyButton}><Text style={styles.buyText}>Buy now</Text><Text style={styles.buyPrice}>{product.price}</Text></Pressable><Pressable testID="add-to-cart-button" onPress={() => router.push(("/cart?name=" + encodeURIComponent(product.name) + "&price=" + encodeURIComponent(product.price) + "&image=" + encodeURIComponent(product.image)) as never)} style={styles.cartButton}><Ionicons name="bag-handle-outline" size={18} color="#fff" /><Text style={styles.cartText}>Add to cart</Text></Pressable></View>
+    <View style={styles.footer}><Pressable disabled={adding} testID="buy-now-button" onPress={addToBasket} style={styles.buyButton}><Text style={styles.buyText}>{adding ? "Adding…" : "Buy now"}</Text><Text style={styles.buyPrice}>{formattedPrice}</Text></Pressable><Pressable disabled={adding} testID="add-to-cart-button" onPress={addToBasket} style={styles.cartButton}><Ionicons name="bag-handle-outline" size={18} color="#fff" /><Text style={styles.cartText}>Add to cart</Text></Pressable></View>
   </SafeAreaView>;
 }
 
@@ -112,6 +140,7 @@ const styles = StyleSheet.create({
   scrollContent: { paddingTop: 10, paddingBottom: 22 },
   imageWrap: { height: 345, backgroundColor: colors.soft },
   image: { width: "100%", height: "100%" },
+  imagePlaceholder: { alignItems: "center", justifyContent: "center" },
   imageHeader: { position: "absolute", top: 16, left: 16, right: 16, flexDirection: "row", justifyContent: "space-between" },
   iconButton: { width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(255,255,255,.92)", alignItems: "center", justifyContent: "center" },
   iconButtonActive: { backgroundColor: colors.blue },
@@ -154,6 +183,7 @@ const styles = StyleSheet.create({
   bidButton: { height: 42, borderRadius: 13, paddingHorizontal: 13, backgroundColor: "#fff", justifyContent: "center" },
   bidButtonText: { color: colors.blue, fontSize: 12, fontWeight: "800" },
   bidMessage: { color: "#fff", fontSize: 11, fontWeight: "700", marginTop: 9 },
+  actionError: { color: colors.accent, fontSize: 12, marginTop: 16 },
   footer: { marginHorizontal: 18, marginBottom: 10, padding: 7, flexDirection: "row", gap: 8, alignItems: "center", backgroundColor: "#fff", borderRadius: 34, borderWidth: 1, borderColor: colors.line, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
   buyButton: { flex: 1, height: 54, borderRadius: 27, justifyContent: "center", paddingHorizontal: 14, backgroundColor: "#fff" },
   buyText: { color: colors.ink, fontSize: 12, fontWeight: "800" },

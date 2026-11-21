@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+concurrency:
+  group: fixora-ota-preview
+  cancel-in-progress: true
+
 jobs:
   update:
     runs-on: ubuntu-latest

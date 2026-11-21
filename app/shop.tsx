@@ -1,14 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { ActivityIndicator, Animated, ScrollView, Text, View, StyleSheet, Image, Pressable, useWindowDimensions } from "react-native";
+import { Animated, ScrollView, Text, View, StyleSheet, Image, Pressable, useWindowDimensions } from "react-native";
 import Svg, { Circle, ClipPath, Defs, G, Path } from "react-native-svg";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { colors, radius } from "../constants/theme";
 import { IconButton } from "../components/IconButton";
 import { useRouter } from "expo-router";
-import { listProducts } from "../data/fixoraRepository";
 
-type Product = { id?: string; name: string; price: number | string; currency?: string; image_url?: string; image?: string; image_urls?: string[]; brand?: string; category?: string; stock_quantity?: number | null };
+type Product = { name: string; price: string; image: string; brand: string };
 type Brand = { label: string; mark: string; tone: string };
 type Category = { id: string; title: string; kicker: string; copy: string; tone: string; brands: Brand[]; products: Product[] };
 
@@ -98,53 +97,14 @@ function BrandMark({ brand, light = false }: { brand: Brand; light?: boolean }) 
   return <Text style={[s.brandMark, light && s.brandMarkLight]}>{brand.mark}</Text>;
 }
 
-function productImage(product: Product) {
-  return product.image_url || product.image || product.image_urls?.[0] || "";
-}
-
-function productPrice(product: Product) {
-  const amount = Number(product.price);
-  if (!Number.isFinite(amount)) return "Price on request";
-  const currency = product.currency || "GHS";
-  try {
-    return new Intl.NumberFormat("en-GH", { style: "currency", currency }).format(amount);
-  } catch {
-    return `${currency} ${amount.toLocaleString()}`;
-  }
-}
-
-function matchesCategory(product: Product, categoryId: string) {
-  const value = String(product.category || "").toLowerCase();
-  const keywords: Record<string, string[]> = {
-    phones: ["phone", "mobile"],
-    tablets: ["tablet", "ipad"],
-    computers: ["computer", "laptop"],
-    parts: ["part", "component"],
-    tools: ["tool", "equipment"],
-    accessories: ["accessory", "accessories", "gadget"],
-  };
-  return (keywords[categoryId] || []).some(keyword => value.includes(keyword));
-}
-
 export default function Shop() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
   const [activeCategory, setActiveCategory] = useState(0);
   const [selectedBrandIndex, setSelectedBrandIndex] = useState(0);
   const brandListRef = useRef<ScrollView>(null);
   const bannerScroll = useRef(new Animated.Value(0)).current;
   const category = categories[activeCategory];
-  useEffect(() => {
-    let active = true;
-    listProducts()
-      .then(rows => { if (active) setProducts(rows as Product[]); })
-      .catch(error => { if (active) setLoadError(error instanceof Error ? error.message : "Could not load products."); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, []);
   const bannerWidth = Math.max(width - 36, 280);
   const pageSize = bannerWidth + 12;
   const brandViewportWidth = Math.max(width - 36, 280);
@@ -197,13 +157,9 @@ export default function Shop() {
       </ScrollView>
 
       <View style={s.productViewport}>
-        {loading ? <ActivityIndicator color={colors.blue} style={{ padding: 28 }} /> : loadError ? <Text style={s.emptyText}>{loadError}</Text> : <View style={s.grid}>
-          {products.filter(product => matchesCategory(product, category.id) && (!product.brand || String(product.brand).toLowerCase() === category.brands[selectedBrandIndex]?.label.toLowerCase())).map(product => <Pressable key={product.id || product.name} onPress={() => product.id && router.push(("/product/" + product.id) as never)} style={({ pressed }) => [s.product, pressed && s.pressedProduct]}>
-            {productImage(product) ? <Image source={{ uri: productImage(product) }} style={s.image} resizeMode="cover" /> : <View style={[s.image, s.imagePlaceholder]}><Ionicons name="cube-outline" size={30} color={colors.muted} /></View>}
-            <Text style={s.name}>{product.name}</Text><Text style={s.price}>{productPrice(product)}</Text><Text style={s.seller}>{product.stock_quantity === 0 ? "Out of stock" : "Verified seller"}</Text>
-          </Pressable>)}
-          {products.filter(product => matchesCategory(product, category.id)).length === 0 ? <Text style={s.emptyText}>No products are listed in this category yet.</Text> : null}
-        </View>}
+        <View style={s.grid}>{category.products.filter(product => product.brand === category.brands[selectedBrandIndex]?.label).map(product => <Pressable key={product.name} onPress={() => router.push(("/product/" + product.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")) as never)} style={({ pressed }) => [s.product, pressed && s.pressedProduct]}>
+          <Image source={{ uri: product.image }} style={s.image} resizeMode="cover" /><Text style={s.name}>{product.name}</Text><Text style={s.price}>{product.price}</Text><Text style={s.seller}>✓ Verified seller</Text>
+        </Pressable>)}</View>
       </View>
     </ScrollView>
   </SafeAreaView></SafeAreaProvider>;
@@ -246,8 +202,6 @@ const s = StyleSheet.create({
   product: { width: "47%", marginBottom: 10 },
   pressedProduct: { opacity: .88, transform: [{ scale: .985 }] },
   image: { width: "100%", height: 170, borderRadius: radius.lg },
-  imagePlaceholder: { backgroundColor: colors.soft, alignItems: "center", justifyContent: "center" },
-  emptyText: { color: colors.muted, fontSize: 13, lineHeight: 20, padding: 20, textAlign: "center", width: "100%" },
   name: { fontSize: 14, fontWeight: "700", marginTop: 9 },
   price: { fontSize: 14, fontWeight: "800", marginTop: 3 },
   seller: { fontSize: 11, color: colors.green, marginTop: 4, fontWeight: "600" },

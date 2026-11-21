@@ -8,7 +8,7 @@ import { IconButton } from "../components/IconButton";
 import { useRouter } from "expo-router";
 import { listProducts } from "../data/fixoraRepository";
 
-type Product = { id: string; name: string; price: number | string; currency?: string; image_url?: string; image?: string; image_urls?: string[]; brand?: string; category?: string; stock_quantity?: number | null };
+type Product = { id?: string; name: string; price: number | string; currency?: string; image_url?: string; image?: string; image_urls?: string[]; brand?: string; category?: string; stock_quantity?: number | null };
 type Brand = { label: string; mark: string; tone: string };
 type Category = { id: string; title: string; kicker: string; copy: string; tone: string; brands: Brand[]; products: Product[] };
 
@@ -198,7 +198,7 @@ export default function Shop() {
 
       <View style={s.productViewport}>
         {loading ? <ActivityIndicator color={colors.blue} style={{ padding: 28 }} /> : loadError ? <Text style={s.emptyText}>{loadError}</Text> : <View style={s.grid}>
-          {products.filter(product => matchesCategory(product, category.id) && (!product.brand || String(product.brand).toLowerCase() === category.brands[selectedBrandIndex]?.label.toLowerCase())).map(product => <Pressable key={product.id} onPress={() => router.push(("/product/" + product.id) as never)} style={({ pressed }) => [s.product, pressed && s.pressedProduct]}>
+          {products.filter(product => matchesCategory(product, category.id) && (!product.brand || String(product.brand).toLowerCase() === category.brands[selectedBrandIndex]?.label.toLowerCase())).map(product => <Pressable key={product.id || product.name} onPress={() => product.id && router.push(("/product/" + product.id) as never)} style={({ pressed }) => [s.product, pressed && s.pressedProduct]}>
             {productImage(product) ? <Image source={{ uri: productImage(product) }} style={s.image} resizeMode="cover" /> : <View style={[s.image, s.imagePlaceholder]}><Ionicons name="cube-outline" size={30} color={colors.muted} /></View>}
             <Text style={s.name}>{product.name}</Text><Text style={s.price}>{productPrice(product)}</Text><Text style={s.seller}>{product.stock_quantity === 0 ? "Out of stock" : "Verified seller"}</Text>
           </Pressable>)}
